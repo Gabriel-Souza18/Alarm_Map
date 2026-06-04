@@ -16,11 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,20 +31,25 @@ import com.example.alarm_map.ui.componentes.CardAlarme
 /**
  * Tela principal com a lista de alarmes cadastrados.
  *
- * @param aoNavegar Chamado com `true` para ir à tela do mapa criando novo alarme,
- *                  ou com o alarme existente para edição (pode ser expandido futuramente)
+ * @param chaveDeRecarga   Incrementado pela MainActivity ao voltar do mapa, forçando recarga
+ * @param aoIrParaMapa     Chamado ao criar novo alarme (sem parâmetro)
+ * @param aoEditarAlarme   Chamado ao editar um alarme existente (passa o alarme)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TelaListaAlarmes(aoIrParaMapa: () -> Unit) {
+fun TelaListaAlarmes(
+    chaveDeRecarga: Int,
+    aoIrParaMapa: () -> Unit,
+    aoEditarAlarme: (Alarme) -> Unit
+) {
     val contexto = LocalContext.current
     val repositorio = remember { RepositorioAlarme(contexto) }
 
-    // Lista observável de alarmes
+    // Lista observável de alarmes — recarrega sempre que chaveDeRecarga muda
     val alarmes = remember { mutableStateListOf<Alarme>() }
 
-    // Carrega os alarmes do banco ao iniciar
-    remember {
+    LaunchedEffect(chaveDeRecarga) {
+        alarmes.clear()
         alarmes.addAll(repositorio.listarTodos())
     }
 
@@ -108,6 +111,9 @@ fun TelaListaAlarmes(aoIrParaMapa: () -> Unit) {
                             if (indice >= 0) {
                                 alarmes[indice] = alarme.copy(ativo = novoEstado)
                             }
+                        },
+                        aoEditar = {
+                            aoEditarAlarme(alarme)
                         },
                         aoDeletar = {
                             repositorio.deletar(alarme.id)

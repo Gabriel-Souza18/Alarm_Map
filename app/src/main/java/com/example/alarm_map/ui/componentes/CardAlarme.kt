@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,12 +28,14 @@ import com.example.alarm_map.modelo.Alarme
  *
  * @param alarme         Dados do alarme a exibir
  * @param aoAlternarAtivo Chamado quando o Switch é acionado
- * @param aoDeletar      Chamado quando o botão de deletar é pressionado
+ * @param aoEditar        Chamado quando o botão de editar é pressionado
+ * @param aoDeletar       Chamado quando o botão de deletar é pressionado
  */
 @Composable
 fun CardAlarme(
     alarme: Alarme,
     aoAlternarAtivo: (Boolean) -> Unit,
+    aoEditar: () -> Unit,
     aoDeletar: () -> Unit
 ) {
     Card(
@@ -89,6 +92,15 @@ fun CardAlarme(
                 checked = alarme.ativo,
                 onCheckedChange = aoAlternarAtivo
             )
+
+            // Botão editar
+            IconButton(onClick = aoEditar) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Editar alarme",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
 
             // Botão deletar
             IconButton(onClick = aoDeletar) {

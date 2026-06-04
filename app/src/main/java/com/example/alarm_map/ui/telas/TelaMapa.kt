@@ -71,7 +71,10 @@ import kotlin.math.roundToInt
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TelaMapa(aoVoltar: () -> Unit) {
+fun TelaMapa(
+    alarmeParaEditar: Alarme? = null,
+    aoVoltar: () -> Unit
+) {
     val contexto = LocalContext.current
     val escopo = rememberCoroutineScope()
     val controladorTeclado = LocalSoftwareKeyboardController.current
@@ -80,32 +83,14 @@ fun TelaMapa(aoVoltar: () -> Unit) {
 
     // Estado da tela
     var nomeBusca by remember { mutableStateOf("") }
-    var nomeAlarme by remember { mutableStateOf("") }
-    var raioMetros by remember { mutableFloatStateOf(200f) }
-    var pontoSelecionado by remember { mutableStateOf<GeoPoint?>(null) }
+    var nomeAlarme by remember { mutableStateOf(alarmeParaEditar?.nome ?: "") }
+    var raioMetros by remember { mutableFloatStateOf(alarmeParaEditar?.raioMetros?.toFloat() ?: 200f) }
+    var pontoSelecionado by remember { mutableStateOf<GeoPoint?>(alarmeParaEditar?.let { GeoPoint(it.latitude, it.longitude) }) }
 
     // Referências mutáveis ao mapa e overlays para atualização dinâmica
     var mapaView: MapView? by remember { mutableStateOf(null) }
     var marcadorAtual: Marker? by remember { mutableStateOf(null) }
     var circuloAtual: Polygon? by remember { mutableStateOf(null) }
-
-    // Ao abrir a tela, centraliza o mapa na posição atual do usuário
-    LaunchedEffect(Unit) {
-        try {
-            val clienteLocalizacao = LocationServices.getFusedLocationProviderClient(contexto)
-            clienteLocalizacao.lastLocation.addOnSuccessListener { localizacao ->
-                localizacao?.let {
-                    val ponto = GeoPoint(it.latitude, it.longitude)
-                    mapaView?.controller?.apply {
-                        animateTo(ponto)
-                        setZoom(16.0)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            // Permissão não concedida ainda — mantém posição padrão
-        }
-    }
 
     // Atualiza o círculo de raio no mapa quando o ponto ou raio mudar
     fun atualizarCirculo(ponto: GeoPoint, raio: Float) {
@@ -189,12 +174,41 @@ fun TelaMapa(aoVoltar: () -> Unit) {
         }
     }
 
+    // Ao abrir a tela, centraliza o mapa e cria o marcador inicial se for edição,
+    // ou busca a localização do usuário se for um novo alarme.
+    LaunchedEffect(mapaView) {
+        val mapa = mapaView ?: return@LaunchedEffect
+        if (alarmeParaEditar != null) {
+            val ponto = GeoPoint(alarmeParaEditar.latitude, alarmeParaEditar.longitude)
+            mapa.controller.apply {
+                setCenter(ponto)
+                setZoom(16.0)
+            }
+            colocarMarcador(ponto)
+        } else {
+            try {
+                val clienteLocalizacao = LocationServices.getFusedLocationProviderClient(contexto)
+                clienteLocalizacao.lastLocation.addOnSuccessListener { localizacao ->
+                    localizacao?.let {
+                        val ponto = GeoPoint(it.latitude, it.longitude)
+                        mapa.controller.apply {
+                            animateTo(ponto)
+                            setZoom(16.0)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Permissão não concedida ainda — mantém posição padrão
+            }
+        }
+    }
+
     BottomSheetScaffold(
         scaffoldState = estadoBottomSheet,
         sheetPeekHeight = 220.dp,
         topBar = {
             TopAppBar(
-                title = { Text("Novo Alarme") },
+                title = { Text(if (alarmeParaEditar != null) "Editar Alarme" else "Novo Alarme") },
                 navigationIcon = {
                     IconButton(onClick = aoVoltar) {
                         Icon(
@@ -278,24 +292,38 @@ fun TelaMapa(aoVoltar: () -> Unit) {
                         when {
                             ponto == null ->
                                 Toast.makeText(contexto, "Toque no mapa para escolher a localização", Toast.LENGTH_SHORT).show()
-                            nomeAlarme.isBlank() ->
-                                Toast.makeText(contexto, "Digite um nome para o alarme", Toast.LENGTH_SHORT).show()
                             else -> {
-                                val alarme = Alarme(
-                                    nome = nomeAlarme.trim(),
-                                    latitude = ponto.latitude,
-                                    longitude = ponto.longitude,
-                                    raioMetros = raioMetros.roundToInt()
-                                )
-                                repositorio.inserir(alarme)
-                                Toast.makeText(contexto, "Alarme salvo!", Toast.LENGTH_SHORT).show()
+                                val nomeFinal = if (nomeAlarme.isBlank()) "Alarme" else nomeAlarme.trim()
+                                val alarme = if (alarmeParaEditar != null) {
+                                    alarmeParaEditar.copy(
+                                        nome = nomeFinal,
+                                        latitude = ponto.latitude,
+                                        longitude = ponto.longitude,
+                                        raioMetros = raioMetros.roundToInt()
+                                    )
+                                } else {
+                                    Alarme(
+                                        nome = nomeFinal,
+                                        latitude = ponto.latitude,
+                                        longitude = ponto.longitude,
+                                        raioMetros = raioMetros.roundToInt()
+                                    )
+                                }
+
+                                if (alarmeParaEditar != null) {
+                                    repositorio.atualizar(alarme)
+                                    Toast.makeText(contexto, "Alarme atualizado!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    repositorio.inserir(alarme)
+                                    Toast.makeText(contexto, "Alarme salvo!", Toast.LENGTH_SHORT).show()
+                                }
                                 aoVoltar()
                             }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Salvar alarme")
+                    Text(if (alarmeParaEditar != null) "Salvar alterações" else "Salvar alarme")
                 }
             }
         }

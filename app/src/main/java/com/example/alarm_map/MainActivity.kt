@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import com.example.alarm_map.modelo.Alarme
 import com.example.alarm_map.servico.ServicoLocalizacao
 import com.example.alarm_map.ui.telas.TelaListaAlarmes
 import com.example.alarm_map.ui.telas.TelaMapa
@@ -54,13 +55,28 @@ class MainActivity : ComponentActivity() {
         setContent {
             Alarm_mapTheme {
                 var telaAtual by remember { mutableStateOf(Tela.LISTA) }
+                var alarmeParaEditar by remember { mutableStateOf<Alarme?>(null) }
+                var chaveDeRecarga by remember { mutableStateOf(0) }
 
                 when (telaAtual) {
                     Tela.LISTA -> TelaListaAlarmes(
-                        aoIrParaMapa = { telaAtual = Tela.MAPA }
+                        chaveDeRecarga = chaveDeRecarga,
+                        aoIrParaMapa = {
+                            alarmeParaEditar = null
+                            telaAtual = Tela.MAPA
+                        },
+                        aoEditarAlarme = { alarme ->
+                            alarmeParaEditar = alarme
+                            telaAtual = Tela.MAPA
+                        }
                     )
                     Tela.MAPA -> TelaMapa(
-                        aoVoltar = { telaAtual = Tela.LISTA }
+                        alarmeParaEditar = alarmeParaEditar,
+                        aoVoltar = {
+                            alarmeParaEditar = null
+                            chaveDeRecarga++
+                            telaAtual = Tela.LISTA
+                        }
                     )
                 }
             }
