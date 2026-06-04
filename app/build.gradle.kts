@@ -5,11 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.alarm_map"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.alarm_map"
@@ -48,6 +44,12 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    // Mapa OpenStreetMap — gratuito, sem API key
+    implementation(libs.osmdroid)
+    // Localização precisa (FusedLocationProvider)
+    implementation(libs.play.services.location)
+    // Coroutines para operações assíncronas (ex: busca de endereço)
+    implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
