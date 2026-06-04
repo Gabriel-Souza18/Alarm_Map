@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -86,6 +87,7 @@ fun TelaMapa(
     var nomeAlarme by remember { mutableStateOf(alarmeParaEditar?.nome ?: "") }
     var raioMetros by remember { mutableFloatStateOf(alarmeParaEditar?.raioMetros?.toFloat() ?: 200f) }
     var pontoSelecionado by remember { mutableStateOf<GeoPoint?>(alarmeParaEditar?.let { GeoPoint(it.latitude, it.longitude) }) }
+    var apenasVibrar by remember { mutableStateOf(alarmeParaEditar?.apenasVibrar ?: false) }
 
     // Referências mutáveis ao mapa e overlays para atualização dinâmica
     var mapaView: MapView? by remember { mutableStateOf(null) }
@@ -285,6 +287,33 @@ fun TelaMapa(
 
                 androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
 
+                // Opção: Apenas vibrar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Apenas vibrar",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Desativa o som e apenas vibra o celular",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    Switch(
+                        checked = apenasVibrar,
+                        onCheckedChange = { apenasVibrar = it }
+                    )
+                }
+
+                androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+
                 // Botão salvar
                 Button(
                     onClick = {
@@ -299,14 +328,16 @@ fun TelaMapa(
                                         nome = nomeFinal,
                                         latitude = ponto.latitude,
                                         longitude = ponto.longitude,
-                                        raioMetros = raioMetros.roundToInt()
+                                        raioMetros = raioMetros.roundToInt(),
+                                        apenasVibrar = apenasVibrar
                                     )
                                 } else {
                                     Alarme(
                                         nome = nomeFinal,
                                         latitude = ponto.latitude,
                                         longitude = ponto.longitude,
-                                        raioMetros = raioMetros.roundToInt()
+                                        raioMetros = raioMetros.roundToInt(),
+                                        apenasVibrar = apenasVibrar
                                     )
                                 }
 

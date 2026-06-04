@@ -75,11 +75,27 @@ fun CardAlarme(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    text = "Raio: ${alarme.raioMetros} m",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Raio: ${alarme.raioMetros} m",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "•",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    Text(
+                        text = if (alarme.apenasVibrar) "Apenas vibrar" else "Tocar e vibrar",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (alarme.apenasVibrar) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
                 Text(
                     text = "%.5f, %.5f".format(alarme.latitude, alarme.longitude),
                     style = MaterialTheme.typography.labelSmall,

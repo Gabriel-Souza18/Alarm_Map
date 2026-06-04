@@ -16,7 +16,7 @@ class BancoAlarmes(contexto: Context) : SQLiteOpenHelper(
 ) {
     companion object {
         const val NOME_BANCO = "alarmes.db"
-        const val VERSAO = 1
+        const val VERSAO = 2
 
         // Tabela
         const val TABELA = "alarmes"
@@ -28,6 +28,7 @@ class BancoAlarmes(contexto: Context) : SQLiteOpenHelper(
         const val COLUNA_LONGITUDE = "longitude"
         const val COLUNA_RAIO_METROS = "raio_metros"
         const val COLUNA_ATIVO = "ativo"
+        const val COLUNA_APENAS_VIBRAR = "apenas_vibrar"
 
         private const val CRIAR_TABELA = """
             CREATE TABLE $TABELA (
@@ -36,7 +37,8 @@ class BancoAlarmes(contexto: Context) : SQLiteOpenHelper(
                 $COLUNA_LATITUDE REAL NOT NULL,
                 $COLUNA_LONGITUDE REAL NOT NULL,
                 $COLUNA_RAIO_METROS INTEGER NOT NULL DEFAULT 200,
-                $COLUNA_ATIVO INTEGER NOT NULL DEFAULT 1
+                $COLUNA_ATIVO INTEGER NOT NULL DEFAULT 1,
+                $COLUNA_APENAS_VIBRAR INTEGER NOT NULL DEFAULT 0
             )
         """
     }
@@ -46,7 +48,11 @@ class BancoAlarmes(contexto: Context) : SQLiteOpenHelper(
     }
 
     override fun onUpgrade(db: SQLiteDatabase, versaoAntiga: Int, versaoNova: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABELA")
-        onCreate(db)
+        if (versaoAntiga < 2) {
+            db.execSQL("ALTER TABLE $TABELA ADD COLUMN $COLUNA_APENAS_VIBRAR INTEGER NOT NULL DEFAULT 0")
+        } else {
+            db.execSQL("DROP TABLE IF EXISTS $TABELA")
+            onCreate(db)
+        }
     }
 }

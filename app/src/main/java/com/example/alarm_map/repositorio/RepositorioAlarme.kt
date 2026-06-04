@@ -9,6 +9,7 @@ import com.example.alarm_map.banco.BancoAlarmes.Companion.COLUNA_LATITUDE
 import com.example.alarm_map.banco.BancoAlarmes.Companion.COLUNA_LONGITUDE
 import com.example.alarm_map.banco.BancoAlarmes.Companion.COLUNA_NOME
 import com.example.alarm_map.banco.BancoAlarmes.Companion.COLUNA_RAIO_METROS
+import com.example.alarm_map.banco.BancoAlarmes.Companion.COLUNA_APENAS_VIBRAR
 import com.example.alarm_map.banco.BancoAlarmes.Companion.TABELA
 import com.example.alarm_map.modelo.Alarme
 
@@ -87,6 +88,7 @@ class RepositorioAlarme(contexto: Context) {
             put(COLUNA_LONGITUDE, alarme.longitude)
             put(COLUNA_RAIO_METROS, alarme.raioMetros)
             put(COLUNA_ATIVO, if (alarme.ativo) 1 else 0)
+            put(COLUNA_APENAS_VIBRAR, if (alarme.apenasVibrar) 1 else 0)
         }
     }
 
@@ -97,7 +99,8 @@ class RepositorioAlarme(contexto: Context) {
             latitude = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUNA_LATITUDE)),
             longitude = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUNA_LONGITUDE)),
             raioMetros = cursor.getInt(cursor.getColumnIndexOrThrow(COLUNA_RAIO_METROS)),
-            ativo = cursor.getInt(cursor.getColumnIndexOrThrow(COLUNA_ATIVO)) == 1
+            ativo = cursor.getInt(cursor.getColumnIndexOrThrow(COLUNA_ATIVO)) == 1,
+            apenasVibrar = cursor.getInt(cursor.getColumnIndexOrThrow(COLUNA_APENAS_VIBRAR)) == 1
         )
     }
 }

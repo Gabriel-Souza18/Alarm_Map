@@ -128,7 +128,7 @@ class ServicoLocalizacao : Service() {
                 // Só dispara uma vez por "entrada" no raio
                 if (!alarmeJaDisparou.contains(alarme.id)) {
                     alarmeJaDisparou.add(alarme.id)
-                    dispararAlarme(alarme.nome)
+                    dispararAlarme(alarme.nome, alarme.apenasVibrar)
                 }
             }
         }
@@ -139,8 +139,10 @@ class ServicoLocalizacao : Service() {
 
     // --- Alarme (som em loop + vibração + tela de desligar) ---
 
-    private fun dispararAlarme(nomeAlarme: String) {
-        tocarSomEmLoop()
+    private fun dispararAlarme(nomeAlarme: String, apenasVibrar: Boolean) {
+        if (!apenasVibrar) {
+            tocarSomEmLoop()
+        }
         vibrar()
         abrirTelaDeDesligar(nomeAlarme)
     }

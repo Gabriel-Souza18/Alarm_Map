@@ -16,5 +16,6 @@ data class Alarme(
     val latitude: Double,
     val longitude: Double,
     val raioMetros: Int = 200,
-    val ativo: Boolean = true
+    val ativo: Boolean = true,
+    val apenasVibrar: Boolean = false
 )
