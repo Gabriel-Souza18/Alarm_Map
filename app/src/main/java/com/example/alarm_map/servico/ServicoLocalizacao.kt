@@ -4,15 +4,18 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.location.Location
 import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.IBinder
 import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import androidx.core.app.NotificationCompat
+import com.example.alarm_map.ActivityAlarmeDisparado
 import com.example.alarm_map.R
 import com.example.alarm_map.repositorio.RepositorioAlarme
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -25,6 +28,7 @@ import com.google.android.gms.location.Priority
 /**
  * Serviço em primeiro plano que monitora a localização do usuário continuamente.
  * Para cada atualização, verifica se o dispositivo entrou no raio de algum alarme ativo.
+ * Quando disparado, toca som em loop e exibe uma tela de desligar ao usuário.
  */
 class ServicoLocalizacao : Service() {
 
@@ -33,6 +37,24 @@ class ServicoLocalizacao : Service() {
         const val ID_NOTIFICACAO = 1
         // Intervalo de atualização de localização em milissegundos (10 segundos)
         const val INTERVALO_MS = 10_000L
+
+        // Referência estática ao MediaPlayer para que a Activity possa pará-lo
+        private var playerAlarme: MediaPlayer? = null
+        private var vibradorAtivo: Vibrator? = null
+
+        /**
+         * Para o som e a vibração do alarme.
+         * Chamado pela ActivityAlarmeDisparado quando o usuário pressiona "Desligar".
+         */
+        fun pararAlarmeAtual(contexto: Context) {
+            playerAlarme?.apply {
+                if (isPlaying) stop()
+                release()
+            }
+            playerAlarme = null
+            vibradorAtivo?.cancel()
+            vibradorAtivo = null
+        }
     }
 
     private lateinit var clienteLocalizacao: FusedLocationProviderClient
@@ -67,6 +89,7 @@ class ServicoLocalizacao : Service() {
     override fun onDestroy() {
         super.onDestroy()
         clienteLocalizacao.removeLocationUpdates(callbackLocalizacao)
+        pararAlarmeAtual(this)
     }
 
     // --- Localização ---
@@ -105,7 +128,7 @@ class ServicoLocalizacao : Service() {
                 // Só dispara uma vez por "entrada" no raio
                 if (!alarmeJaDisparou.contains(alarme.id)) {
                     alarmeJaDisparou.add(alarme.id)
-                    dispararAlarme()
+                    dispararAlarme(alarme.nome)
                 }
             }
         }
@@ -114,31 +137,67 @@ class ServicoLocalizacao : Service() {
         alarmeJaDisparou.retainAll(idsNaFaixa)
     }
 
-    // --- Alarme (som + vibração) ---
+    // --- Alarme (som em loop + vibração + tela de desligar) ---
 
-    private fun dispararAlarme() {
-        tocarSom()
+    private fun dispararAlarme(nomeAlarme: String) {
+        tocarSomEmLoop()
         vibrar()
+        abrirTelaDeDesligar(nomeAlarme)
     }
 
-    private fun tocarSom() {
+    private fun tocarSomEmLoop() {
         try {
+            // Para qualquer som anterior antes de tocar o novo
+            pararAlarmeAtual(this)
+
             val uriSom = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            val toque = RingtoneManager.getRingtone(this, uriSom)
-            toque.play()
+
+            playerAlarme = MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                setDataSource(applicationContext, uriSom)
+                isLooping = true // Toca em loop até o usuário desligar
+                prepare()
+                start()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
     private fun vibrar() {
-        val vibrador = getSystemService(Vibrator::class.java)
-        // Padrão: vibra 500ms, pausa 200ms, vibra 500ms
-        val padrao = longArrayOf(0, 500, 200, 500)
-        vibrador.vibrate(
-            VibrationEffect.createWaveform(padrao, -1)
-        )
+        try {
+            val vibrador = getSystemService(Vibrator::class.java)
+            vibradorAtivo = vibrador
+            // Padrão de vibração: vibra 500ms, pausa 300ms, repete indefinidamente (índice 0)
+            val padrao = longArrayOf(0, 500, 300)
+            vibrador.vibrate(
+                VibrationEffect.createWaveform(padrao, 0)
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Abre a tela de desligar o alarme em primeiro plano,
+     * mesmo que o app esteja fechado ou o celular bloqueado.
+     */
+    private fun abrirTelaDeDesligar(nomeAlarme: String) {
+        val intencao = Intent(this, ActivityAlarmeDisparado::class.java).apply {
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+            )
+            putExtra(ActivityAlarmeDisparado.EXTRA_NOME_ALARME, nomeAlarme)
+        }
+        startActivity(intencao)
     }
 
     // --- Notificação persistente (obrigatória para ForegroundService) ---

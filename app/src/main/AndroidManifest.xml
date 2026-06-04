@@ -40,6 +40,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Tela exibida quando o alarme dispara (aparece mesmo com celular bloqueado) -->
+        <activity
+            android:name=".ActivityAlarmeDisparado"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Alarm_map"
+            android:launchMode="singleTop" />
+
         <!-- Serviço de monitoramento de localização em background -->
         <service
             android:name=".servico.ServicoLocalizacao"

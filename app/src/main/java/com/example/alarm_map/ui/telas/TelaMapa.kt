@@ -1,9 +1,8 @@
 package com.example.alarm_map.ui.telas
 
 import android.graphics.Color
-import android.view.MotionEvent
 import android.widget.Toast
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,20 +12,24 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,10 +42,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.alarm_map.modelo.Alarme
 import com.example.alarm_map.repositorio.RepositorioAlarme
+import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -60,6 +65,7 @@ import kotlin.math.roundToInt
 
 /**
  * Tela do mapa para criar um novo alarme.
+ * Centraliza o mapa na localização atual do usuário ao abrir.
  * O usuário pode tocar no mapa ou buscar por endereço para definir a localização,
  * e ajustar o raio com um Slider.
  */
@@ -78,10 +84,28 @@ fun TelaMapa(aoVoltar: () -> Unit) {
     var raioMetros by remember { mutableFloatStateOf(200f) }
     var pontoSelecionado by remember { mutableStateOf<GeoPoint?>(null) }
 
-    // Referências mutáveis ao mapa e seus overlays para atualização dinâmica
+    // Referências mutáveis ao mapa e overlays para atualização dinâmica
     var mapaView: MapView? by remember { mutableStateOf(null) }
     var marcadorAtual: Marker? by remember { mutableStateOf(null) }
     var circuloAtual: Polygon? by remember { mutableStateOf(null) }
+
+    // Ao abrir a tela, centraliza o mapa na posição atual do usuário
+    LaunchedEffect(Unit) {
+        try {
+            val clienteLocalizacao = LocationServices.getFusedLocationProviderClient(contexto)
+            clienteLocalizacao.lastLocation.addOnSuccessListener { localizacao ->
+                localizacao?.let {
+                    val ponto = GeoPoint(it.latitude, it.longitude)
+                    mapaView?.controller?.apply {
+                        animateTo(ponto)
+                        setZoom(16.0)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Permissão não concedida ainda — mantém posição padrão
+        }
+    }
 
     // Atualiza o círculo de raio no mapa quando o ponto ou raio mudar
     fun atualizarCirculo(ponto: GeoPoint, raio: Float) {
@@ -112,6 +136,23 @@ fun TelaMapa(aoVoltar: () -> Unit) {
         pontoSelecionado = ponto
         atualizarCirculo(ponto, raioMetros)
         mapa.controller.animateTo(ponto)
+    }
+
+    // Centraliza o mapa na localização atual do usuário
+    fun irParaMinhaLocalizacao() {
+        try {
+            val clienteLocalizacao = LocationServices.getFusedLocationProviderClient(contexto)
+            clienteLocalizacao.lastLocation.addOnSuccessListener { localizacao ->
+                localizacao?.let {
+                    mapaView?.controller?.apply {
+                        animateTo(GeoPoint(it.latitude, it.longitude))
+                        setZoom(16.0)
+                    }
+                } ?: Toast.makeText(contexto, "Localização ainda não disponível", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(contexto, "Erro ao obter localização", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // Busca coordenadas de um endereço via Nominatim (OpenStreetMap, gratuito)
@@ -174,14 +215,15 @@ fun TelaMapa(aoVoltar: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = "Configurar alarme",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
+
+                androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
 
                 // Campo: nome do alarme
                 OutlinedTextField(
@@ -192,6 +234,8 @@ fun TelaMapa(aoVoltar: () -> Unit) {
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
 
                 // Slider de raio
                 Text(
@@ -205,13 +249,11 @@ fun TelaMapa(aoVoltar: () -> Unit) {
                         pontoSelecionado?.let { atualizarCirculo(it, novoRaio) }
                     },
                     valueRange = 50f..2000f,
-                    steps = 0,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "50 m",
@@ -223,9 +265,11 @@ fun TelaMapa(aoVoltar: () -> Unit) {
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.outline,
                         modifier = Modifier.weight(1f),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.End
+                        textAlign = TextAlign.End
                     )
                 }
+
+                androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
 
                 // Botão salvar
                 Button(
@@ -256,37 +300,13 @@ fun TelaMapa(aoVoltar: () -> Unit) {
             }
         }
     ) { paddingInterno ->
-        Column(
+        // Box permite que a barra de busca flutue SOBRE o mapa, sem sobreposição indesejada
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingInterno)
         ) {
-            // Barra de busca por endereço
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = nomeBusca,
-                    onValueChange = { nomeBusca = it },
-                    label = { Text("Buscar endereço") },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { buscarEndereco() })
-                )
-                IconButton(onClick = { buscarEndereco() }) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Buscar"
-                    )
-                }
-            }
-
-            // Mapa OSMDroid
+            // Mapa OSMDroid — fundo da Box
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
@@ -294,8 +314,8 @@ fun TelaMapa(aoVoltar: () -> Unit) {
                     MapView(ctx).apply {
                         setTileSource(TileSourceFactory.MAPNIK)
                         setMultiTouchControls(true)
-                        controller.setZoom(15.0)
-                        // Posição inicial: Brasil (centro geográfico)
+                        controller.setZoom(14.0)
+                        // Posição inicial: Brasília (fallback caso GPS não esteja disponível)
                         controller.setCenter(GeoPoint(-15.7801, -47.9292))
 
                         // Overlay para capturar toques no mapa
@@ -310,10 +330,54 @@ fun TelaMapa(aoVoltar: () -> Unit) {
                         mapaView = this
                     }
                 },
-                update = { mapa ->
-                    mapaView = mapa
-                }
+                update = { mapa -> mapaView = mapa }
             )
+
+            // Barra de busca flutuando sobre o mapa (topo da Box)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .align(Alignment.TopCenter),
+                shape = MaterialTheme.shapes.medium,
+                shadowElevation = 6.dp,
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = nomeBusca,
+                        onValueChange = { nomeBusca = it },
+                        label = { Text("Buscar endereço") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { buscarEndereco() })
+                    )
+                    IconButton(onClick = { buscarEndereco() }) {
+                        Icon(Icons.Default.Search, contentDescription = "Buscar")
+                    }
+                }
+            }
+
+            // Botão "Minha localização" no canto inferior direito
+            FloatingActionButton(
+                onClick = { irParaMinhaLocalizacao() },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 16.dp),
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MyLocation,
+                    contentDescription = "Minha localização",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

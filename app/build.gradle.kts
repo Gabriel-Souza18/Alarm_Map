@@ -44,6 +44,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    // Ícones Material completos (MyLocation, NotificationsOff, etc.)
+    implementation(libs.androidx.compose.material.icons.extended)
     // Mapa OpenStreetMap — gratuito, sem API key
     implementation(libs.osmdroid)
     // Localização precisa (FusedLocationProvider)
