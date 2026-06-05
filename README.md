@@ -53,6 +53,11 @@ app/src/main/java/com/example/alarm_map/
 ```
 
 ---
+## Ultima Realese
+
+* Para baixar a ultima versão do apk: 
+https://github.com/Gabriel-Souza18/Alarm_Map/releases/tag/v1.0.0
+---
 
 ## Como Rodar o Projeto
 
