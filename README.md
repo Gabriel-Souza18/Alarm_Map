@@ -67,3 +67,4 @@ app/src/main/java/com/example/alarm_map/
     ```bash
     ./gradlew assembleDebug
     ```
+
