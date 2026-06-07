@@ -19,6 +19,9 @@ import com.example.alarm_map.servico.ServicoLocalizacao
 import com.example.alarm_map.ui.telas.TelaListaAlarmes
 import com.example.alarm_map.ui.telas.TelaMapa
 import com.example.alarm_map.ui.theme.Alarm_mapTheme
+import com.example.alarm_map.ui.theme.GerenciadorTema
+import com.example.alarm_map.ui.theme.TemaCor
+import com.example.alarm_map.ui.theme.TemaModo
 
 /**
  * Ponto de entrada do aplicativo.
@@ -52,8 +55,13 @@ class MainActivity : ComponentActivity() {
 
         verificarPermissoes()
 
+        val gerenciadorTema = GerenciadorTema(this)
+
         setContent {
-            Alarm_mapTheme {
+            var modoTema by remember { mutableStateOf(gerenciadorTema.obterModo()) }
+            var corTema by remember { mutableStateOf(gerenciadorTema.obterCor()) }
+
+            Alarm_mapTheme(modo = modoTema, cor = corTema) {
                 var telaAtual by remember { mutableStateOf(Tela.LISTA) }
                 var alarmeParaEditar by remember { mutableStateOf<Alarme?>(null) }
                 var chaveDeRecarga by remember { mutableStateOf(0) }
@@ -68,6 +76,14 @@ class MainActivity : ComponentActivity() {
                         aoEditarAlarme = { alarme ->
                             alarmeParaEditar = alarme
                             telaAtual = Tela.MAPA
+                        },
+                        modoTema = modoTema,
+                        corTema = corTema,
+                        aoAlterarTema = { novoModo, novaCor ->
+                            gerenciadorTema.salvarModo(novoModo)
+                            gerenciadorTema.salvarCor(novaCor)
+                            modoTema = novoModo
+                            corTema = novaCor
                         }
                     )
                     Tela.MAPA -> TelaMapa(
