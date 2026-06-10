@@ -184,63 +184,10 @@ fun DialogoConfiguracaoTema(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("Modo de Exibição", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    TemaModo.values().forEach { modo ->
-                        val selecionado = modoSelecionado == modo
-                        Button(
-                            onClick = { modoSelecionado = modo },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (selecionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = if (selecionado) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            ),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = when (modo) {
-                                    TemaModo.SISTEMA -> "Sistema"
-                                    TemaModo.CLARO -> "Claro"
-                                    TemaModo.ESCURO -> "Escuro"
-                                }
-                            )
-                        }
-                    }
-                }
+                SeletorModoTema(modoSelecionado = modoSelecionado, aoSelecionar = { modoSelecionado = it })
 
                 Text("Cor do Aplicativo", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TemaCor.values().forEach { cor ->
-                        val selecionada = corSelecionada == cor
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(cor.corPrincipal)
-                                .clickable { corSelecionada = cor }
-                                .border(
-                                    width = if (selecionada) 3.dp else 0.dp,
-                                    color = if (selecionada) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (selecionada) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selecionado",
-                                    tint = if (cor == TemaCor.LARANJA) Color.Black else Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-                }
+                SeletorCorTema(corSelecionada = corSelecionada, aoSelecionar = { corSelecionada = it })
             }
         },
         confirmButton = {
@@ -259,4 +206,76 @@ fun DialogoConfiguracaoTema(
             }
         }
     )
+}
+
+@Composable
+private fun SeletorModoTema(
+    modoSelecionado: TemaModo,
+    aoSelecionar: (TemaModo) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        TemaModo.values().forEach { modo ->
+            val selecionado = modoSelecionado == modo
+            Button(
+                onClick = { aoSelecionar(modo) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (selecionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = if (selecionado) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = when (modo) {
+                        TemaModo.SISTEMA -> "Sistema"
+                        TemaModo.CLARO -> "Claro"
+                        TemaModo.ESCURO -> "Escuro"
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeletorCorTema(
+    corSelecionada: TemaCor,
+    aoSelecionar: (TemaCor) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TemaCor.values().forEach { cor ->
+            val selecionada = corSelecionada == cor
+            val corBorda = if (selecionada) MaterialTheme.colorScheme.onSurface else Color.Transparent
+            val checkmarkTint = if (cor == TemaCor.LARANJA) Color.Black else Color.White
+
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(cor.corPrincipal)
+                    .clickable { aoSelecionar(cor) }
+                    .border(
+                        width = if (selecionada) 3.dp else 0.dp,
+                        color = corBorda,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (selecionada) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Selecionado",
+                        tint = checkmarkTint,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
 }
