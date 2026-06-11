@@ -12,6 +12,18 @@ jobs:
         with:
           fetch-depth: 0  # Necessário para obter o histórico completo
 
+      # Configura o JDK (ajuste a versão conforme seu projeto: 17, 21, etc.)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # Gera o relatório de cobertura (XML)
+      - name: Generate coverage report
+        run: ./gradlew jacocoTestReport
+
+      # Scanner do SonarCloud
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
@@ -19,3 +31,4 @@ jobs:
         with:
           args: >
             -Dsonar.qualitygate.wait=true
+            -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
