@@ -1,35 +1,52 @@
 package com.example.alarm_map.ui.theme
 
 import android.content.Context
-import androidx.test.core.app.ApplicationProvider
+import android.content.SharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
+import org.mockito.kotlin.*
 
-/**
- * Testes unitários para GerenciadorTema usando Robolectric.
- * Robolectric simula o Android na JVM — sem emulador, sem dispositivo.
- */
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
 class GerenciadorTemaTest {
 
     private lateinit var gerenciador: GerenciadorTema
-    private lateinit var contexto: Context
+    private lateinit var mockContext: Context
+    private lateinit var mockPrefs: SharedPreferences
+    private lateinit var mockEditor: SharedPreferences.Editor
+    private val prefsMap = mutableMapOf<String, String>()
 
     @Before
     fun setUp() {
-        contexto = ApplicationProvider.getApplicationContext()
-        // Limpa as preferências antes de cada teste para garantir isolamento
-        contexto.getSharedPreferences("config_temas", Context.MODE_PRIVATE)
-            .edit().clear().commit()
-        gerenciador = GerenciadorTema(contexto)
-    }
+        mockContext = mock()
+        mockPrefs = mock()
+        mockEditor = mock()
+        prefsMap.clear()
 
-    // --- Testes de TemaModo ---
+        whenever(mockContext.getSharedPreferences(eq("config_temas"), eq(Context.MODE_PRIVATE)))
+            .thenReturn(mockPrefs)
+
+        whenever(mockPrefs.edit()).thenReturn(mockEditor)
+
+        // Mock getting preferences
+        whenever(mockPrefs.getString(any(), anyOrNull())).thenAnswer { invocation ->
+            val key = invocation.arguments[0] as String
+            val defValue = invocation.arguments[1] as? String
+            prefsMap[key] ?: defValue
+        }
+
+        // Mock putting preferences
+        whenever(mockEditor.putString(any(), any())).thenAnswer { invocation ->
+            val key = invocation.arguments[0] as String
+            val value = invocation.arguments[1] as String
+            prefsMap[key] = value
+            mockEditor
+        }
+
+        // Apply just returns void, commit returns boolean
+        whenever(mockEditor.apply()).then {}
+
+        gerenciador = GerenciadorTema(mockContext)
+    }
 
     @Test
     fun `obterModo retorna SISTEMA por padrao`() {
@@ -57,20 +74,16 @@ class GerenciadorTemaTest {
 
     @Test
     fun `obterModo com valor corrompido retorna SISTEMA`() {
-        // Grava um valor inválido diretamente nas prefs para simular dado corrompido
-        contexto.getSharedPreferences("config_temas", Context.MODE_PRIVATE)
-            .edit().putString("modo_tema", "VALOR_INVALIDO").commit()
+        prefsMap["modo_tema"] = "VALOR_INVALIDO"
         assertEquals(TemaModo.SISTEMA, gerenciador.obterModo())
     }
 
     @Test
     fun `obterModo persiste apos recriar o gerenciador`() {
         gerenciador.salvarModo(TemaModo.ESCURO)
-        val novoGerenciador = GerenciadorTema(contexto)
+        val novoGerenciador = GerenciadorTema(mockContext)
         assertEquals(TemaModo.ESCURO, novoGerenciador.obterModo())
     }
-
-    // --- Testes de TemaCor ---
 
     @Test
     fun `obterCor retorna ROXO por padrao`() {
@@ -103,15 +116,14 @@ class GerenciadorTemaTest {
 
     @Test
     fun `obterCor com valor corrompido retorna ROXO`() {
-        contexto.getSharedPreferences("config_temas", Context.MODE_PRIVATE)
-            .edit().putString("cor_tema", "COR_INEXISTENTE").commit()
+        prefsMap["cor_tema"] = "COR_INEXISTENTE"
         assertEquals(TemaCor.ROXO, gerenciador.obterCor())
     }
 
     @Test
     fun `obterCor persiste apos recriar o gerenciador`() {
         gerenciador.salvarCor(TemaCor.LARANJA)
-        val novoGerenciador = GerenciadorTema(contexto)
+        val novoGerenciador = GerenciadorTema(mockContext)
         assertEquals(TemaCor.LARANJA, novoGerenciador.obterCor())
     }
 
