@@ -134,4 +134,16 @@ class GerenciadorTemaTest {
         assertEquals(TemaModo.ESCURO, gerenciador.obterModo())
         assertEquals(TemaCor.VERDE, gerenciador.obterCor())
     }
+
+    @Test
+    fun `obterModo quando prefs getString retorna null retorna SISTEMA`() {
+        whenever(mockPrefs.getString(eq("modo_tema"), anyOrNull())).thenReturn(null)
+        assertEquals(TemaModo.SISTEMA, gerenciador.obterModo())
+    }
+
+    @Test
+    fun `obterCor quando prefs getString retorna null retorna ROXO`() {
+        whenever(mockPrefs.getString(eq("cor_tema"), anyOrNull())).thenReturn(null)
+        assertEquals(TemaCor.ROXO, gerenciador.obterCor())
+    }
 }

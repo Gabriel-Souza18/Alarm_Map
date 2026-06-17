@@ -19,7 +19,7 @@ enum class TemaCor(val nome: String, val corPrincipal: Color) {
     LARANJA("Laranja", Color(0xFFFF9800))
 }
 
-private fun obterColorScheme(temaCor: TemaCor, darkTheme: Boolean): androidx.compose.material3.ColorScheme {
+internal fun obterColorScheme(temaCor: TemaCor, darkTheme: Boolean): androidx.compose.material3.ColorScheme {
     val corPrincipal = temaCor.corPrincipal
     
     return if (darkTheme) {
@@ -49,7 +49,7 @@ private fun obterColorScheme(temaCor: TemaCor, darkTheme: Boolean): androidx.com
     }
 }
 
-private fun ajustarBrilho(cor: Color, fator: Float): Color {
+internal fun ajustarBrilho(cor: Color, fator: Float): Color {
     return Color(
         red = (cor.red * fator).coerceIn(0f, 1f),
         green = (cor.green * fator).coerceIn(0f, 1f),

@@ -173,4 +173,13 @@ class RepositorioAlarmeTest {
         assertEquals(1, linhas)
         verify(mockDb).delete(eq(BancoAlarmes.TABELA), eq("${BancoAlarmes.COLUNA_ID} = ?"), eq(arrayOf("1")))
     }
+
+    @Test
+    fun `construtor default inicializa BancoAlarmes`() {
+        Mockito.mockConstruction(BancoAlarmes::class.java).use { mockedBanco ->
+            val repoDefault = RepositorioAlarme(mockContext)
+            org.junit.Assert.assertNotNull(repoDefault)
+            assertEquals(1, mockedBanco.constructed().size)
+        }
+    }
 }
