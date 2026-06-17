@@ -1,54 +1,76 @@
 package com.example.alarm_map.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+enum class TemaModo {
+    SISTEMA, CLARO, ESCURO
+}
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+enum class TemaCor(val nome: String, val corPrincipal: Color) {
+    ROXO("Roxo", Color(0xFF673AB7)),
+    AZUL("Azul", Color(0xFF2196F3)),
+    VERDE("Verde", Color(0xFF4CAF50)),
+    VERMELHO("Vermelho", Color(0xFFF44336)),
+    LARANJA("Laranja", Color(0xFFFF9800))
+}
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
-)
+internal fun obterColorScheme(temaCor: TemaCor, darkTheme: Boolean): androidx.compose.material3.ColorScheme {
+    val corPrincipal = temaCor.corPrincipal
+    
+    return if (darkTheme) {
+        darkColorScheme(
+            primary = corPrincipal,
+            secondary = ajustarBrilho(corPrincipal, 0.8f),
+            tertiary = ajustarBrilho(corPrincipal, 0.9f),
+            background = Color(0xFF121212),
+            surface = Color(0xFF1E1E1E),
+            onPrimary = Color.Black,
+            onSecondary = Color.Black,
+            onBackground = Color.White,
+            onSurface = Color.White
+        )
+    } else {
+        lightColorScheme(
+            primary = corPrincipal,
+            secondary = ajustarBrilho(corPrincipal, 0.7f),
+            tertiary = ajustarBrilho(corPrincipal, 0.6f),
+            background = Color(0xFFF5F5F5),
+            surface = Color.White,
+            onPrimary = Color.White,
+            onSecondary = Color.White,
+            onBackground = Color(0xFF212121),
+            onSurface = Color(0xFF212121)
+        )
+    }
+}
+
+internal fun ajustarBrilho(cor: Color, fator: Float): Color {
+    return Color(
+        red = (cor.red * fator).coerceIn(0f, 1f),
+        green = (cor.green * fator).coerceIn(0f, 1f),
+        blue = (cor.blue * fator).coerceIn(0f, 1f),
+        alpha = cor.alpha
+    )
+}
 
 @Composable
 fun Alarm_mapTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    modo: TemaModo = TemaModo.SISTEMA,
+    cor: TemaCor = TemaCor.ROXO,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val darkTheme = when (modo) {
+        TemaModo.SISTEMA -> isSystemInDarkTheme()
+        TemaModo.CLARO -> false
+        TemaModo.ESCURO -> true
     }
+
+    val colorScheme = obterColorScheme(cor, darkTheme)
 
     MaterialTheme(
         colorScheme = colorScheme,

@@ -16,9 +16,10 @@ import com.example.alarm_map.modelo.Alarme
 /**
  * Responsável por todas as operações de leitura e escrita dos alarmes no banco SQLite.
  */
-class RepositorioAlarme(contexto: Context) {
-
-    private val banco = BancoAlarmes(contexto)
+class RepositorioAlarme(
+    contexto: Context,
+    private val banco: BancoAlarmes = BancoAlarmes(contexto)
+) {
 
     /** Insere um novo alarme e retorna o ID gerado. */
     fun inserir(alarme: Alarme): Long {
