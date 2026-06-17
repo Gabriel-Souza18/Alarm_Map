@@ -106,6 +106,13 @@ jacoco {
     toolVersion = "0.8.12"
 }
 
+tasks.withType<Test>().configureEach {
+    configure<JacocoTaskExtension> {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
+}
+
 tasks.register<JacocoReport>("jacocoTestReport") {
     dependsOn("testDebugUnitTest")
 

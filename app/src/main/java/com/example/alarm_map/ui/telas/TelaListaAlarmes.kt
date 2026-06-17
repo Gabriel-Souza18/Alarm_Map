@@ -67,14 +67,16 @@ fun TelaListaAlarmes(
 ) {
     val contexto = LocalContext.current
     val repositorio = remember { RepositorioAlarme(contexto) }
+    val state = remember { TelaListaAlarmesState(repositorio) }
 
     // Lista observável de alarmes — recarrega sempre que chaveDeRecarga muda
     val alarmes = remember { mutableStateListOf<Alarme>() }
     var exibirDialogoTema by remember { mutableStateOf(false) }
 
     LaunchedEffect(chaveDeRecarga) {
+        state.carregarAlarmes()
         alarmes.clear()
-        alarmes.addAll(repositorio.listarTodos())
+        alarmes.addAll(state.alarmes)
     }
 
     if (exibirDialogoTema) {
@@ -148,7 +150,7 @@ fun TelaListaAlarmes(
                     CardAlarme(
                         alarme = alarme,
                         aoAlternarAtivo = { novoEstado ->
-                            repositorio.alternarAtivo(alarme.id, novoEstado)
+                            state.alternarAtivo(alarme.id, novoEstado)
                             val indice = alarmes.indexOfFirst { it.id == alarme.id }
                             if (indice >= 0) {
                                 alarmes[indice] = alarme.copy(ativo = novoEstado)
@@ -158,7 +160,7 @@ fun TelaListaAlarmes(
                             aoEditarAlarme(alarme)
                         },
                         aoDeletar = {
-                            repositorio.deletar(alarme.id)
+                            state.deletarAlarme(alarme.id)
                             alarmes.removeIf { it.id == alarme.id }
                         }
                     )
