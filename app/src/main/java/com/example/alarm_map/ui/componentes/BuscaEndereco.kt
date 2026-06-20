@@ -236,7 +236,7 @@ fun BuscaEndereco(
  */
 internal fun construirUrlPhoton(consulta: String, centroMapa: GeoPoint?): String {
     val consultaCodificada = java.net.URLEncoder.encode(consulta, "UTF-8")
-    val urlBuilder = StringBuilder("https://photon.komoot.io/api/?q=$consultaCodificada&limit=5&lang=pt")
+    val urlBuilder = StringBuilder("https://photon.komoot.io/api/?q=$consultaCodificada&limit=5")
 
     centroMapa?.let {
         urlBuilder.append("&lat=${it.latitude}&lon=${it.longitude}")

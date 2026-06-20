@@ -80,7 +80,6 @@ class BuscaEnderecoTest {
 
         assertTrue(url.startsWith("https://photon.komoot.io/api/?q="))
         assertTrue(url.contains("limit=5"))
-        assertTrue(url.contains("lang=pt"))
         // Não deve conter lat/lon sem centroMapa
         assertTrue(!url.contains("&lat="))
         assertTrue(!url.contains("&lon="))
