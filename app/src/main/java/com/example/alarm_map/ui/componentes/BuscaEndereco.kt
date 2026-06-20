@@ -34,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -72,14 +74,22 @@ fun BuscaEndereco(
     aoSelecionarEndereco: (GeoPoint, String) -> Unit
 ) {
     val controladorTeclado = LocalSoftwareKeyboardController.current
+    val gerenciadorFoco = LocalFocusManager.current
 
     var consulta by remember { mutableStateOf("") }
     var resultados by remember { mutableStateOf<List<ResultadoBusca>>(emptyList()) }
     var carregando by remember { mutableStateOf(false) }
     var mostrarResultados by remember { mutableStateOf(false) }
+    var temFoco by remember { mutableStateOf(false) }
+    var deSugestao by remember { mutableStateOf(false) }
 
     // Debounce: aguarda 400ms após o usuário parar de digitar antes de buscar
     LaunchedEffect(consulta) {
+        if (deSugestao) {
+            deSugestao = false
+            return@LaunchedEffect
+        }
+
         if (consulta.length < 3) {
             resultados = emptyList()
             mostrarResultados = false
@@ -107,11 +117,16 @@ fun BuscaEndereco(
         // Campo de busca
         OutlinedTextField(
             value = consulta,
-            onValueChange = { consulta = it },
+            onValueChange = {
+                deSugestao = false
+                consulta = it
+            },
             label = { Text("Buscar endereço") },
             placeholder = { Text("Rua, bairro, cidade…") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { temFoco = it.isFocused },
             leadingIcon = {
                 Icon(
                     Icons.Default.Search,
@@ -127,6 +142,7 @@ fun BuscaEndereco(
                     )
                 } else if (consulta.isNotEmpty()) {
                     IconButton(onClick = {
+                        deSugestao = false
                         consulta = ""
                         resultados = emptyList()
                         mostrarResultados = false
@@ -143,7 +159,7 @@ fun BuscaEndereco(
 
         // Dropdown de sugestões
         AnimatedVisibility(
-            visible = mostrarResultados,
+            visible = mostrarResultados && temFoco,
             enter = fadeIn() + slideInVertically(),
             exit = fadeOut() + slideOutVertically()
         ) {
@@ -165,6 +181,8 @@ fun BuscaEndereco(
                                 .fillMaxWidth()
                                 .clickable {
                                     controladorTeclado?.hide()
+                                    gerenciadorFoco.clearFocus()
+                                    deSugestao = true
                                     consulta = resultado.nome
                                     mostrarResultados = false
                                     aoSelecionarEndereco(resultado.ponto, resultado.nome)
