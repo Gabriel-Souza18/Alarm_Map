@@ -8,12 +8,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,24 +32,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.alarm_map.modelo.Alarme
 import com.example.alarm_map.repositorio.RepositorioAlarme
+import com.example.alarm_map.ui.componentes.BuscaEndereco
 import com.google.android.gms.location.LocationServices
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -61,7 +52,6 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
-import java.net.URL
 import kotlin.math.roundToInt
 
 /**
@@ -77,13 +67,10 @@ fun TelaMapa(
     aoVoltar: () -> Unit
 ) {
     val contexto = LocalContext.current
-    val escopo = rememberCoroutineScope()
-    val controladorTeclado = LocalSoftwareKeyboardController.current
     val repositorio = remember { RepositorioAlarme(contexto) }
     val estadoBottomSheet = rememberBottomSheetScaffoldState()
 
     // Estado da tela
-    var nomeBusca by remember { mutableStateOf("") }
     var nomeAlarme by remember { mutableStateOf(alarmeParaEditar?.nome ?: "") }
     var raioMetros by remember { mutableFloatStateOf(alarmeParaEditar?.raioMetros?.toFloat() ?: 200f) }
     var pontoSelecionado by remember { mutableStateOf<GeoPoint?>(alarmeParaEditar?.let { GeoPoint(it.latitude, it.longitude) }) }
@@ -142,39 +129,7 @@ fun TelaMapa(
         }
     }
 
-    // Busca coordenadas de um endereço via Nominatim (OpenStreetMap, gratuito)
-    fun buscarEndereco() {
-        if (nomeBusca.isBlank()) return
-        controladorTeclado?.hide()
-        escopo.launch {
-            try {
-                val endereçoCodificado = java.net.URLEncoder.encode(nomeBusca, "UTF-8")
-                val url = "https://nominatim.openstreetmap.org/search?q=$endereçoCodificado&format=json&limit=1"
-                val resposta = withContext(Dispatchers.IO) {
-                    val conexao = URL(url).openConnection() as java.net.HttpURLConnection
-                    conexao.setRequestProperty("User-Agent", "AlarmMapApp/1.0")
-                    conexao.inputStream.bufferedReader().readText()
-                }
-                val json = JSONArray(resposta)
-                if (json.length() > 0) {
-                    val resultado = json.getJSONObject(0)
-                    val lat = resultado.getDouble("lat")
-                    val lon = resultado.getDouble("lon")
-                    val ponto = GeoPoint(lat, lon)
-                    colocarMarcador(ponto)
-                    mapaView?.controller?.setZoom(16.0)
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(contexto, "Endereço não encontrado", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(contexto, "Erro na busca: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
+
 
     // Ao abrir a tela, centraliza o mapa e cria o marcador inicial se for edição,
     // ou busca a localização do usuário se for um novo alarme.
@@ -392,7 +347,7 @@ fun TelaMapa(
                 update = { mapa -> mapaView = mapa }
             )
 
-            // Barra de busca flutuando sobre o mapa (topo da Box)
+            // Barra de busca com autocomplete Photon flutuando sobre o mapa
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -402,25 +357,15 @@ fun TelaMapa(
                 shadowElevation = 6.dp,
                 color = MaterialTheme.colorScheme.surface
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = nomeBusca,
-                        onValueChange = { nomeBusca = it },
-                        label = { Text("Buscar endereço") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = { buscarEndereco() })
-                    )
-                    IconButton(onClick = { buscarEndereco() }) {
-                        Icon(Icons.Default.Search, contentDescription = "Buscar")
+                BuscaEndereco(
+                    centroMapa = mapaView?.mapCenter?.let {
+                        GeoPoint(it.latitude, it.longitude)
+                    },
+                    aoSelecionarEndereco = { ponto, _ ->
+                        colocarMarcador(ponto)
+                        mapaView?.controller?.setZoom(16.0)
                     }
-                }
+                )
             }
 
             // Botão "Minha localização" no canto inferior direito
