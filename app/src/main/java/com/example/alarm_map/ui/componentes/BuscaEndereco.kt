@@ -103,8 +103,23 @@ fun BuscaEndereco(
             val novosResultados = withContext(Dispatchers.IO) {
                 buscarPhoton(consulta, centroMapa)
             }
-            resultados = novosResultados
-            mostrarResultados = novosResultados.isNotEmpty()
+            val resultadosOrdenados = if (centroMapa != null) {
+                novosResultados.sortedBy { r ->
+                    val resultadoDistancia = FloatArray(1)
+                    android.location.Location.distanceBetween(
+                        centroMapa.latitude,
+                        centroMapa.longitude,
+                        r.ponto.latitude,
+                        r.ponto.longitude,
+                        resultadoDistancia
+                    )
+                    resultadoDistancia[0]
+                }
+            } else {
+                novosResultados
+            }
+            resultados = resultadosOrdenados
+            mostrarResultados = resultadosOrdenados.isNotEmpty()
         } catch (_: Exception) {
             resultados = emptyList()
             mostrarResultados = false
