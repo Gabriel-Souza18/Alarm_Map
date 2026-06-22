@@ -53,7 +53,8 @@ import java.net.URL
 data class ResultadoBusca(
     val ponto: GeoPoint,
     val nome: String,
-    val enderecoFormatado: String
+    val enderecoFormatado: String,
+    val tipo: String = ""
 )
 
 /**
@@ -103,23 +104,36 @@ fun BuscaEndereco(
             val novosResultados = withContext(Dispatchers.IO) {
                 buscarPhoton(consulta, centroMapa)
             }
-            val resultadosOrdenados = if (centroMapa != null) {
-                novosResultados.sortedBy { r ->
-                    val resultadoDistancia = FloatArray(1)
+            val resultadosOrdenados = novosResultados.sortedWith { r1, r2 ->
+                val p1 = obterPrioridadeTipo(r1.tipo)
+                val p2 = obterPrioridadeTipo(r2.tipo)
+                if (p1 != p2) {
+                    p1.compareTo(p2)
+                } else if (centroMapa != null) {
+                    val resultadoDistancia1 = FloatArray(1)
                     android.location.Location.distanceBetween(
                         centroMapa.latitude,
                         centroMapa.longitude,
-                        r.ponto.latitude,
-                        r.ponto.longitude,
-                        resultadoDistancia
+                        r1.ponto.latitude,
+                        r1.ponto.longitude,
+                        resultadoDistancia1
                     )
-                    resultadoDistancia[0]
+                    val resultadoDistancia2 = FloatArray(1)
+                    android.location.Location.distanceBetween(
+                        centroMapa.latitude,
+                        centroMapa.longitude,
+                        r2.ponto.latitude,
+                        r2.ponto.longitude,
+                        resultadoDistancia2
+                    )
+                    resultadoDistancia1[0].compareTo(resultadoDistancia2[0])
+                } else {
+                    0
                 }
-            } else {
-                novosResultados
             }
-            resultados = resultadosOrdenados
-            mostrarResultados = resultadosOrdenados.isNotEmpty()
+            val topResultados = resultadosOrdenados.take(5)
+            resultados = topResultados
+            mostrarResultados = topResultados.isNotEmpty()
         } catch (_: Exception) {
             resultados = emptyList()
             mostrarResultados = false
@@ -251,10 +265,10 @@ fun BuscaEndereco(
  */
 internal fun construirUrlPhoton(consulta: String, centroMapa: GeoPoint?): String {
     val consultaCodificada = java.net.URLEncoder.encode(consulta, "UTF-8")
-    val urlBuilder = StringBuilder("https://photon.komoot.io/api/?q=$consultaCodificada&limit=5")
+    val urlBuilder = StringBuilder("https://photon.komoot.io/api/?q=$consultaCodificada&limit=15")
 
     centroMapa?.let {
-        urlBuilder.append("&lat=${it.latitude}&lon=${it.longitude}")
+        urlBuilder.append("&lat=${it.latitude}&lon=${it.longitude}&location_bias_scale=0.6")
     }
 
     return urlBuilder.toString()
@@ -286,6 +300,7 @@ internal fun parsearRespostaPhoton(respostaJson: String): List<ResultadoBusca> {
         val cidade = props.optString("city", "")
         val estado = props.optString("state", "")
         val pais = props.optString("country", "")
+        val tipo = props.optString("type", props.optString("osm_value", ""))
 
         // Monta o nome de exibição — usa o name se tiver, senão a rua
         val nomeExibicao = when {
@@ -308,7 +323,8 @@ internal fun parsearRespostaPhoton(respostaJson: String): List<ResultadoBusca> {
             ResultadoBusca(
                 ponto = GeoPoint(lat, lon),
                 nome = nomeExibicao,
-                enderecoFormatado = enderecoFormatado
+                enderecoFormatado = enderecoFormatado,
+                tipo = tipo
             )
         )
     }
@@ -328,4 +344,19 @@ private fun buscarPhoton(consulta: String, centroMapa: GeoPoint?): List<Resultad
 
     val resposta = conexao.inputStream.bufferedReader().readText()
     return parsearRespostaPhoton(resposta)
+}
+
+/**
+ * Retorna a prioridade (relevância) do tipo do local para ordenação.
+ * Menor valor indica maior prioridade (relevância).
+ */
+internal fun obterPrioridadeTipo(tipo: String): Int {
+    return when (tipo.lowercase()) {
+        "country" -> 1
+        "state" -> 2
+        "city", "town", "village", "hamlet", "municipality" -> 3
+        "district", "suburb", "neighbourhood", "locality", "postcode" -> 4
+        "street", "highway" -> 5
+        else -> 6 // house, building, poi, etc.
+    }
 }

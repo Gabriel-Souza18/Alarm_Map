@@ -79,7 +79,7 @@ class BuscaEnderecoTest {
         val url = construirUrlPhoton("São Paulo", null)
 
         assertTrue(url.startsWith("https://photon.komoot.io/api/?q="))
-        assertTrue(url.contains("limit=5"))
+        assertTrue(url.contains("limit=15"))
         // Não deve conter lat/lon sem centroMapa
         assertTrue(!url.contains("&lat="))
         assertTrue(!url.contains("&lon="))
@@ -92,6 +92,7 @@ class BuscaEnderecoTest {
 
         assertTrue(url.contains("lat=-23.55"))
         assertTrue(url.contains("lon=-46.63"))
+        assertTrue(url.contains("location_bias_scale=0.6"))
     }
 
     @Test
@@ -108,7 +109,7 @@ class BuscaEnderecoTest {
         val url = construirUrlPhoton("", null)
 
         assertTrue(url.startsWith("https://photon.komoot.io/api/?q="))
-        assertTrue(url.contains("limit=5"))
+        assertTrue(url.contains("limit=15"))
     }
 
     @Test
@@ -118,6 +119,7 @@ class BuscaEnderecoTest {
 
         assertTrue(url.contains("lat=0.0"))
         assertTrue(url.contains("lon=0.0"))
+        assertTrue(url.contains("location_bias_scale=0.6"))
     }
 
     // =========================================================================
@@ -363,5 +365,60 @@ class BuscaEnderecoTest {
         assertTrue(endereco.contains("São Paulo"))
         assertTrue(endereco.contains("SP"))
         assertTrue(endereco.contains("Brasil"))
+    }
+
+    @Test
+    fun `parsearRespostaPhoton parseia o campo type e osm_value como tipo`() {
+        val json = """
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [-46.63, -23.55]},
+                    "properties": {"name": "Estado SP", "type": "state"}
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [-43.17, -22.90]},
+                    "properties": {"name": "Cidade RJ", "osm_value": "city"}
+                }
+            ]
+        }
+        """.trimIndent()
+
+        val resultados = parsearRespostaPhoton(json)
+
+        assertEquals(2, resultados.size)
+        assertEquals("state", resultados[0].tipo)
+        assertEquals("city", resultados[1].tipo)
+    }
+
+    @Test
+    fun `obterPrioridadeTipo retorna prioridade correta`() {
+        assertEquals(1, obterPrioridadeTipo("country"))
+        assertEquals(2, obterPrioridadeTipo("state"))
+        assertEquals(3, obterPrioridadeTipo("city"))
+        assertEquals(3, obterPrioridadeTipo("town"))
+        assertEquals(4, obterPrioridadeTipo("suburb"))
+        assertEquals(5, obterPrioridadeTipo("street"))
+        assertEquals(6, obterPrioridadeTipo("house"))
+        assertEquals(6, obterPrioridadeTipo("poi"))
+    }
+
+    @Test
+    fun `ordenacao por relevancia ordena corretamente`() {
+        val rEstado = ResultadoBusca(GeoPoint(0.0, 0.0), "Estado SP", "SP", "state")
+        val rCidade = ResultadoBusca(GeoPoint(0.0, 0.0), "Cidade SP", "SP", "city")
+        val rRua = ResultadoBusca(GeoPoint(0.0, 0.0), "Rua SP", "SP", "street")
+        val rPoi = ResultadoBusca(GeoPoint(0.0, 0.0), "Shopping SP", "SP", "poi")
+
+        val lista = listOf(rPoi, rRua, rEstado, rCidade)
+        val listaOrdenada = lista.sortedBy { obterPrioridadeTipo(it.tipo) }
+
+        assertEquals("state", listaOrdenada[0].tipo)
+        assertEquals("city", listaOrdenada[1].tipo)
+        assertEquals("street", listaOrdenada[2].tipo)
+        assertEquals("poi", listaOrdenada[3].tipo)
     }
 }

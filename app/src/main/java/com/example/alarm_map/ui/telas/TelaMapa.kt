@@ -80,6 +80,27 @@ fun TelaMapa(
     var mapaView: MapView? by remember { mutableStateOf(null) }
     var marcadorAtual: Marker? by remember { mutableStateOf(null) }
     var circuloAtual: Polygon? by remember { mutableStateOf(null) }
+    var marcadorMinhaLocalizacao: Marker? by remember { mutableStateOf(null) }
+
+    // Coloca ou atualiza o marcador da localização atual do usuário no mapa
+    fun atualizarMarcadorMinhaLocalizacao(ponto: GeoPoint) {
+        val mapa = mapaView ?: return
+        marcadorMinhaLocalizacao?.let { mapa.overlays.remove(it) }
+        val novoMarcador = Marker(mapa).apply {
+            position = ponto
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            title = "Minha localização"
+            icon = androidx.core.content.ContextCompat.getDrawable(
+                mapa.context,
+                android.R.drawable.ic_menu_mylocation
+            )?.apply {
+                setTint(Color.parseColor("#2196F3"))
+            }
+        }
+        mapa.overlays.add(novoMarcador)
+        marcadorMinhaLocalizacao = novoMarcador
+        mapa.invalidate()
+    }
 
     // Atualiza o círculo de raio no mapa quando o ponto ou raio mudar
     fun atualizarCirculo(ponto: GeoPoint, raio: Float) {
@@ -118,8 +139,10 @@ fun TelaMapa(
             val clienteLocalizacao = LocationServices.getFusedLocationProviderClient(contexto)
             clienteLocalizacao.lastLocation.addOnSuccessListener { localizacao ->
                 localizacao?.let {
+                    val ponto = GeoPoint(it.latitude, it.longitude)
+                    atualizarMarcadorMinhaLocalizacao(ponto)
                     mapaView?.controller?.apply {
-                        animateTo(GeoPoint(it.latitude, it.longitude))
+                        animateTo(ponto)
                         setZoom(16.0)
                     }
                 } ?: Toast.makeText(contexto, "Localização ainda não disponível", Toast.LENGTH_SHORT).show()
@@ -142,21 +165,25 @@ fun TelaMapa(
                 setZoom(16.0)
             }
             colocarMarcador(ponto)
-        } else {
-            try {
-                val clienteLocalizacao = LocationServices.getFusedLocationProviderClient(contexto)
-                clienteLocalizacao.lastLocation.addOnSuccessListener { localizacao ->
-                    localizacao?.let {
-                        val ponto = GeoPoint(it.latitude, it.longitude)
+        }
+
+        // Sempre tenta obter a localização do usuário para colocar o marcador de localização atual
+        try {
+            val clienteLocalizacao = LocationServices.getFusedLocationProviderClient(contexto)
+            clienteLocalizacao.lastLocation.addOnSuccessListener { localizacao ->
+                localizacao?.let {
+                    val pontoUsuario = GeoPoint(it.latitude, it.longitude)
+                    atualizarMarcadorMinhaLocalizacao(pontoUsuario)
+                    if (alarmeParaEditar == null) {
                         mapa.controller.apply {
-                            animateTo(ponto)
+                            animateTo(pontoUsuario)
                             setZoom(16.0)
                         }
                     }
                 }
-            } catch (e: Exception) {
-                // Permissão não concedida ainda — mantém posição padrão
             }
+        } catch (e: Exception) {
+            // Permissão não concedida ainda ou erro — mantém posição padrão
         }
     }
 
