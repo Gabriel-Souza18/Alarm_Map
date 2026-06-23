@@ -72,7 +72,8 @@ data class ResultadoBusca(
 @Composable
 fun BuscaEndereco(
     centroMapa: GeoPoint?,
-    aoSelecionarEndereco: (GeoPoint, String) -> Unit
+    aoSelecionarEndereco: (GeoPoint, String) -> Unit,
+    funcaoBusca: (String, GeoPoint?) -> List<ResultadoBusca> = { query, centro -> buscarPhoton(query, centro) }
 ) {
     val controladorTeclado = LocalSoftwareKeyboardController.current
     val gerenciadorFoco = LocalFocusManager.current
@@ -102,7 +103,7 @@ fun BuscaEndereco(
 
         try {
             val novosResultados = withContext(Dispatchers.IO) {
-                buscarPhoton(consulta, centroMapa)
+                funcaoBusca(consulta, centroMapa)
             }
             val resultadosOrdenados = novosResultados.sortedWith { r1, r2 ->
                 val p1 = obterPrioridadeTipo(r1.tipo)

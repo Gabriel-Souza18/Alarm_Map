@@ -1,5 +1,8 @@
 package com.example.alarm_map.ui.componentes
 
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createComposeRule
+import org.junit.Rule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -420,5 +423,112 @@ class BuscaEnderecoTest {
         assertEquals("city", listaOrdenada[1].tipo)
         assertEquals("street", listaOrdenada[2].tipo)
         assertEquals("poi", listaOrdenada[3].tipo)
+    }
+
+    // =========================================================================
+    // Testes do Composable BuscaEndereco (UI)
+    // =========================================================================
+
+    @get:Rule
+    val composeTestRule = createComposeRule()
+
+    @Test
+    fun testBuscaEnderecoExibeSugestoes() {
+        var pontoSelecionado: GeoPoint? = null
+        var nomeSelecionado: String? = null
+
+        val fakeResultados = listOf(
+            ResultadoBusca(
+                ponto = GeoPoint(-23.55, -46.63),
+                nome = "Local Teste",
+                enderecoFormatado = "Rua Teste, Cidade Teste"
+            )
+        )
+
+        composeTestRule.setContent {
+            BuscaEndereco(
+                centroMapa = null,
+                aoSelecionarEndereco = { ponto, nome ->
+                    pontoSelecionado = ponto
+                    nomeSelecionado = nome
+                },
+                funcaoBusca = { _, _ -> fakeResultados }
+            )
+        }
+
+        // Campo de busca deve existir
+        composeTestRule.onNodeWithText("Buscar endereço").assertExists()
+
+        // Digita texto de busca (mínimo de 3 caracteres)
+        composeTestRule.onNodeWithText("Buscar endereço").performTextInput("São")
+        
+        // Garante que o campo ganha foco para o dropdown aparecer
+        composeTestRule.onNodeWithText("Buscar endereço").requestFocus()
+
+        // Avança o relógio virtual para que o debounce (400ms) termine e a busca rode
+        composeTestRule.mainClock.advanceTimeBy(1000L)
+        composeTestRule.waitForIdle()
+
+        // Verifica se as sugestões são mostradas
+        composeTestRule.onNodeWithText("Local Teste").assertExists()
+        composeTestRule.onNodeWithText("Rua Teste, Cidade Teste").assertExists()
+
+        // Clica na sugestão
+        composeTestRule.onNodeWithText("Local Teste").performClick()
+        composeTestRule.waitForIdle()
+
+        // O callback deve ter sido acionado
+        assertEquals(GeoPoint(-23.55, -46.63), pontoSelecionado)
+        assertEquals("Local Teste", nomeSelecionado)
+    }
+
+    @Test
+    fun testBuscaEnderecoNaoBuscaComMenosDeTresCaracteres() {
+        var buscaAcionada = false
+
+        composeTestRule.setContent {
+            BuscaEndereco(
+                centroMapa = null,
+                aoSelecionarEndereco = { _, _ -> },
+                funcaoBusca = { _, _ ->
+                    buscaAcionada = true
+                    emptyList()
+                }
+            )
+        }
+
+        // Digita apenas 2 caracteres
+        composeTestRule.onNodeWithText("Buscar endereço").performTextInput("Sa")
+        composeTestRule.waitForIdle()
+
+        // A busca não deve ter sido acionada
+        assertTrue(!buscaAcionada)
+    }
+
+    @Test
+    fun testBuscaEnderecoLimpaCampoAoClicarNoBotaoLimpar() {
+        composeTestRule.setContent {
+            BuscaEndereco(
+                centroMapa = null,
+                aoSelecionarEndereco = { _, _ -> },
+                funcaoBusca = { _, _ -> emptyList() }
+            )
+        }
+
+        // Digita texto
+        composeTestRule.onNodeWithText("Buscar endereço").performTextInput("Teste")
+        
+        // Avança o relógio para carregar e finalizar (carregando de true para false)
+        composeTestRule.mainClock.advanceTimeBy(1000L)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Teste").assertExists()
+
+        // Clica no botão de limpar (ícone Close com contentDescription "Limpar")
+        composeTestRule.onNodeWithContentDescription("Limpar").performClick()
+        composeTestRule.waitForIdle()
+
+        // O texto deve sumir
+        composeTestRule.onNodeWithText("Teste").assertDoesNotExist()
     }
 }
