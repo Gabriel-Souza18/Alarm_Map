@@ -2,6 +2,8 @@ package com.example.alarm_map.ui.telas
 
 import android.graphics.Color
 import android.widget.Toast
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,12 +28,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +48,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.example.alarm_map.modelo.Alarme
 import com.example.alarm_map.repositorio.RepositorioAlarme
 import com.example.alarm_map.ui.componentes.BuscaEndereco
+import com.example.alarm_map.ui.componentes.ResultadoBusca
 import com.google.android.gms.location.LocationServices
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
@@ -64,17 +70,34 @@ import kotlin.math.roundToInt
 @Composable
 fun TelaMapa(
     alarmeParaEditar: Alarme? = null,
-    aoVoltar: () -> Unit
+    aoVoltar: () -> Unit,
+    funcaoBusca: ((String, GeoPoint?) -> List<ResultadoBusca>)? = null,
+    expandidoInicialmente: Boolean = false
 ) {
     val contexto = LocalContext.current
     val repositorio = remember { RepositorioAlarme(contexto) }
-    val estadoBottomSheet = rememberBottomSheetScaffoldState()
+    val estadoBottomSheet = rememberBottomSheetScaffoldState(
+        bottomSheetState = rememberStandardBottomSheetState(
+            initialValue = if (expandidoInicialmente) SheetValue.Expanded else SheetValue.PartiallyExpanded
+        )
+    )
 
     // Estado da tela
     var nomeAlarme by remember { mutableStateOf(alarmeParaEditar?.nome ?: "") }
     var raioMetros by remember { mutableFloatStateOf(alarmeParaEditar?.raioMetros?.toFloat() ?: 200f) }
     var pontoSelecionado by remember { mutableStateOf<GeoPoint?>(alarmeParaEditar?.let { GeoPoint(it.latitude, it.longitude) }) }
     var apenasVibrar by remember { mutableStateOf(alarmeParaEditar?.apenasVibrar ?: false) }
+
+    val escopo = rememberCoroutineScope()
+    LaunchedEffect(pontoSelecionado) {
+        if (pontoSelecionado != null) {
+            try {
+                estadoBottomSheet.bottomSheetState.expand()
+            } catch (e: Exception) {
+                // Silently ignore failures in test/layout environments
+            }
+        }
+    }
 
     // Referências mutáveis ao mapa e overlays para atualização dinâmica
     var mapaView: MapView? by remember { mutableStateOf(null) }
@@ -119,6 +142,8 @@ fun TelaMapa(
 
     // Coloca o marcador no mapa e atualiza o estado
     fun colocarMarcador(ponto: GeoPoint) {
+        System.err.println("DEBUG_MARCADOR: ponto=$ponto")
+        pontoSelecionado = ponto
         val mapa = mapaView ?: return
         marcadorAtual?.let { mapa.overlays.remove(it) }
         val novoMarcador = Marker(mapa).apply {
@@ -128,7 +153,6 @@ fun TelaMapa(
         }
         mapa.overlays.add(novoMarcador)
         marcadorAtual = novoMarcador
-        pontoSelecionado = ponto
         atualizarCirculo(ponto, raioMetros)
         mapa.controller.animateTo(ponto)
     }
@@ -213,6 +237,7 @@ fun TelaMapa(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
                 Text(
@@ -300,6 +325,7 @@ fun TelaMapa(
                 Button(
                     onClick = {
                         val ponto = pontoSelecionado
+                        System.err.println("DEBUG_SAVE: ponto=$ponto")
                         when {
                             ponto == null ->
                                 Toast.makeText(contexto, "Toque no mapa para escolher a localização", Toast.LENGTH_SHORT).show()
@@ -384,15 +410,28 @@ fun TelaMapa(
                 shadowElevation = 6.dp,
                 color = MaterialTheme.colorScheme.surface
             ) {
-                BuscaEndereco(
-                    centroMapa = mapaView?.mapCenter?.let {
-                        GeoPoint(it.latitude, it.longitude)
-                    },
-                    aoSelecionarEndereco = { ponto, _ ->
-                        colocarMarcador(ponto)
-                        mapaView?.controller?.setZoom(16.0)
-                    }
-                )
+                if (funcaoBusca != null) {
+                    BuscaEndereco(
+                        centroMapa = mapaView?.mapCenter?.let {
+                            GeoPoint(it.latitude, it.longitude)
+                        },
+                        aoSelecionarEndereco = { ponto, _ ->
+                            colocarMarcador(ponto)
+                            mapaView?.controller?.setZoom(16.0)
+                        },
+                        funcaoBusca = funcaoBusca
+                    )
+                } else {
+                    BuscaEndereco(
+                        centroMapa = mapaView?.mapCenter?.let {
+                            GeoPoint(it.latitude, it.longitude)
+                        },
+                        aoSelecionarEndereco = { ponto, _ ->
+                            colocarMarcador(ponto)
+                            mapaView?.controller?.setZoom(16.0)
+                        }
+                    )
+                }
             }
 
             // Botão "Minha localização" no canto inferior direito

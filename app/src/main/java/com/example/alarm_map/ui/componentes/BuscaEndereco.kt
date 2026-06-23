@@ -135,7 +135,8 @@ fun BuscaEndereco(
             val topResultados = resultadosOrdenados.take(5)
             resultados = topResultados
             mostrarResultados = topResultados.isNotEmpty()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            e.printStackTrace()
             resultados = emptyList()
             mostrarResultados = false
         } finally {
