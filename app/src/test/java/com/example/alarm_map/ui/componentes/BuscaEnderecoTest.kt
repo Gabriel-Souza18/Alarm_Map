@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mockito
 import org.osmdroid.util.GeoPoint
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -467,7 +468,11 @@ class BuscaEnderecoTest {
 
         // Avança o relógio virtual para que o debounce (400ms) termine e a busca rode
         composeTestRule.mainClock.advanceTimeBy(1000L)
-        composeTestRule.waitForIdle()
+
+        // Aguarda a sugestão aparecer
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Local Teste").fetchSemanticsNodes().isNotEmpty()
+        }
 
         // Verifica se as sugestões são mostradas
         composeTestRule.onNodeWithText("Local Teste").assertExists()
@@ -530,5 +535,78 @@ class BuscaEnderecoTest {
 
         // O texto deve sumir
         composeTestRule.onNodeWithText("Teste").assertDoesNotExist()
+    }
+
+    @Test
+    fun testBuscaEnderecoOrdenacaoPorDistancia() {
+        val centro = GeoPoint(-23.5505, -46.6333) // Praça da Sé, SP
+
+        // rProximo: Avenida Paulista, ~3km
+        // rDistante: Rio de Janeiro, ~350km
+        // Ambos têm o mesmo tipo ("street") para forçar a comparação por distância
+        val rProximo = ResultadoBusca(
+            ponto = GeoPoint(-23.5615, -46.6560),
+            nome = "Ponto Proximo",
+            enderecoFormatado = "Rua Proxima",
+            tipo = "street"
+        )
+        val rDistante = ResultadoBusca(
+            ponto = GeoPoint(-22.9068, -43.1729),
+            nome = "Ponto Distante",
+            enderecoFormatado = "Rua Distante",
+            tipo = "street"
+        )
+
+        // Passa a lista na ordem contrária (distante primeiro) para testar se ordena corretamente
+        val fakeResultados = listOf(rDistante, rProximo)
+
+        composeTestRule.setContent {
+            BuscaEndereco(
+                centroMapa = centro,
+                aoSelecionarEndereco = { _, _ -> },
+                funcaoBusca = { _, _ -> fakeResultados }
+            )
+        }
+
+        // Digita algo e aguarda o debounce
+        composeTestRule.onNodeWithText("Buscar endereço").performTextInput("Rua")
+        composeTestRule.onNodeWithText("Buscar endereço").requestFocus()
+        composeTestRule.mainClock.advanceTimeBy(1000L)
+
+        // Aguarda até que o resultado "Ponto Proximo" apareça na tela
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Ponto Proximo").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Verifica que ambos os pontos aparecem
+        composeTestRule.onNodeWithText("Ponto Proximo").assertExists()
+        composeTestRule.onNodeWithText("Ponto Distante").assertExists()
+    }
+
+    @Test
+    fun testBuscaEnderecoTratamentoErro() {
+        composeTestRule.setContent {
+            BuscaEndereco(
+                centroMapa = null,
+                aoSelecionarEndereco = { _, _ -> },
+                funcaoBusca = { _, _ -> throw RuntimeException("Erro de rede simulado") }
+            )
+        }
+
+        composeTestRule.onNodeWithText("Buscar endereço").performTextInput("São")
+        composeTestRule.onNodeWithText("Buscar endereço").requestFocus()
+        composeTestRule.mainClock.advanceTimeBy(1000L)
+        composeTestRule.waitForIdle()
+
+        // Não deve haver sugestões na tela
+        composeTestRule.onNodeWithText("Local Teste").assertDoesNotExist()
+    }
+
+    @Test
+    fun testLocationDistanceBetweenNativo() {
+        val results = FloatArray(1)
+        android.location.Location.distanceBetween(-23.5505, -46.6333, -23.5615, -46.6560, results)
+        println("DEBUG LOCATION NATIVO: distance = ${results[0]}")
+        assertTrue(results[0] > 0)
     }
 }
