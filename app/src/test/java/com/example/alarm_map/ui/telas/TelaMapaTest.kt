@@ -42,7 +42,8 @@ class TelaMapaTest {
         composeTestRule.setContent {
             TelaMapa(
                 alarmeParaEditar = null,
-                aoVoltar = { voltou = true }
+                aoVoltar = { voltou = true },
+                isTesting = true
             )
         }
 
@@ -53,6 +54,10 @@ class TelaMapaTest {
         composeTestRule.onNodeWithText("Apenas vibrar").assertExists()
         composeTestRule.onNodeWithText("Salvar alarme").assertExists()
 
+        // Testa o clique em salvar quando ponto é nulo
+        composeTestRule.onNodeWithText("Salvar alarme").performClick()
+        composeTestRule.waitForIdle()
+
         // Testa o clique em voltar
         composeTestRule.onNodeWithContentDescription("Voltar").performClick()
         assertTrue(voltou)
@@ -60,6 +65,7 @@ class TelaMapaTest {
 
     @Test
     fun testTelaMapaEdicaoAlarme() {
+        var voltou = false
         val alarme = Alarme(
             id = 1,
             nome = "Alarme Teste Edicao",
@@ -73,13 +79,27 @@ class TelaMapaTest {
         composeTestRule.setContent {
             TelaMapa(
                 alarmeParaEditar = alarme,
-                aoVoltar = {}
+                aoVoltar = { voltou = true },
+                expandidoInicialmente = true,
+                isTesting = true
             )
         }
 
         composeTestRule.onNodeWithText("Editar Alarme").assertExists()
         composeTestRule.onNodeWithText("Alarme Teste Edicao").assertExists()
-        composeTestRule.onNodeWithText("Salvar alterações").assertExists()
+        
+        // Imprime a árvore de semântica
+        System.err.println(composeTestRule.onRoot().printToString())
+
+        // Avança o relógio para garantir que qualquer animação de expansão terminou
+        composeTestRule.mainClock.advanceTimeBy(5000L)
+        composeTestRule.waitForIdle()
+
+        // Clica em Salvar alterações
+        composeTestRule.onNodeWithText("Salvar alterações").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+        
+        assertTrue(voltou)
     }
 
     @Test
@@ -99,7 +119,8 @@ class TelaMapaTest {
             composeTestRule.setContent {
                 TelaMapa(
                     alarmeParaEditar = null,
-                    aoVoltar = {}
+                    aoVoltar = {},
+                    isTesting = true
                 )
             }
 
@@ -126,7 +147,9 @@ class TelaMapaTest {
             TelaMapa(
                 alarmeParaEditar = null,
                 aoVoltar = { salvou = true },
-                funcaoBusca = { _, _ -> fakeResultados }
+                funcaoBusca = { _, _ -> fakeResultados },
+                expandidoInicialmente = true,
+                isTesting = true
             )
         }
 
@@ -136,6 +159,8 @@ class TelaMapaTest {
 
         // Avança o relógio virtual
         composeTestRule.mainClock.advanceTimeBy(1000L)
+        // Reativa o avanço automático para que as animações e recomposições subsequentes fluam
+        composeTestRule.mainClock.autoAdvance = true
 
         // Aguarda a sugestão aparecer na tela
         composeTestRule.waitUntil(timeoutMillis = 5000) {
@@ -150,7 +175,14 @@ class TelaMapaTest {
         composeTestRule.onNodeWithText("Nome do alarme").performScrollTo().performTextInput("Alarme de Teste")
         
         // Clica em Apenas Vibrar
-        composeTestRule.onNodeWithText("Apenas vibrar").performScrollTo().performClick()
+        composeTestRule.onNode(isToggleable()).performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        // Imprime a árvore de semântica para depuração
+        System.err.println(composeTestRule.onRoot().printToString())
+
+        // Garante que todas as animações terminaram antes de salvar
+        composeTestRule.mainClock.advanceTimeBy(5000L)
         composeTestRule.waitForIdle()
 
         // Clica em Salvar
@@ -174,7 +206,8 @@ class TelaMapaTest {
             composeTestRule.setContent {
                 TelaMapa(
                     alarmeParaEditar = null,
-                    aoVoltar = {}
+                    aoVoltar = {},
+                    isTesting = true
                 )
             }
             composeTestRule.waitForIdle()
@@ -197,7 +230,8 @@ class TelaMapaTest {
             composeTestRule.setContent {
                 TelaMapa(
                     alarmeParaEditar = null,
-                    aoVoltar = {}
+                    aoVoltar = {},
+                    isTesting = true
                 )
             }
             composeTestRule.waitForIdle()
@@ -217,7 +251,8 @@ class TelaMapaTest {
             composeTestRule.setContent {
                 TelaMapa(
                     alarmeParaEditar = null,
-                    aoVoltar = {}
+                    aoVoltar = {},
+                    isTesting = true
                 )
             }
             composeTestRule.waitForIdle()

@@ -72,7 +72,8 @@ fun TelaMapa(
     alarmeParaEditar: Alarme? = null,
     aoVoltar: () -> Unit,
     funcaoBusca: ((String, GeoPoint?) -> List<ResultadoBusca>)? = null,
-    expandidoInicialmente: Boolean = false
+    expandidoInicialmente: Boolean = false,
+    isTesting: Boolean = false
 ) {
     val contexto = LocalContext.current
     val repositorio = remember { RepositorioAlarme(contexto) }
@@ -211,10 +212,13 @@ fun TelaMapa(
         }
     }
 
-    BottomSheetScaffold(
-        scaffoldState = estadoBottomSheet,
-        sheetPeekHeight = 220.dp,
-        topBar = {
+    if (isTesting) {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
             TopAppBar(
                 title = { Text(if (alarmeParaEditar != null) "Editar Alarme" else "Novo Alarme") },
                 navigationIcon = {
@@ -231,9 +235,33 @@ fun TelaMapa(
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
-        },
-        sheetContent = {
-            // --- Painel inferior de configuração ---
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                shape = MaterialTheme.shapes.medium,
+                shadowElevation = 6.dp,
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                if (funcaoBusca != null) {
+                    BuscaEndereco(
+                        centroMapa = null,
+                        aoSelecionarEndereco = { ponto, _ ->
+                            colocarMarcador(ponto)
+                        },
+                        funcaoBusca = funcaoBusca
+                    )
+                } else {
+                    BuscaEndereco(
+                        centroMapa = null,
+                        aoSelecionarEndereco = { ponto, _ ->
+                            colocarMarcador(ponto)
+                        }
+                    )
+                }
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -248,7 +276,6 @@ fun TelaMapa(
 
                 androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
 
-                // Campo: nome do alarme
                 OutlinedTextField(
                     value = nomeAlarme,
                     onValueChange = { nomeAlarme = it },
@@ -260,7 +287,6 @@ fun TelaMapa(
 
                 androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
 
-                // Slider de raio
                 Text(
                     text = "Raio: ${raioMetros.roundToInt()} metros",
                     style = MaterialTheme.typography.bodyMedium
@@ -294,7 +320,6 @@ fun TelaMapa(
 
                 androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
 
-                // Opção: Apenas vibrar
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -321,43 +346,49 @@ fun TelaMapa(
 
                 androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
 
-                // Botão salvar
                 Button(
                     onClick = {
-                        val ponto = pontoSelecionado
-                        System.err.println("DEBUG_SAVE: ponto=$ponto")
-                        when {
-                            ponto == null ->
-                                Toast.makeText(contexto, "Toque no mapa para escolher a localização", Toast.LENGTH_SHORT).show()
-                            else -> {
-                                val nomeFinal = if (nomeAlarme.isBlank()) "Alarme" else nomeAlarme.trim()
-                                val alarme = if (alarmeParaEditar != null) {
-                                    alarmeParaEditar.copy(
-                                        nome = nomeFinal,
-                                        latitude = ponto.latitude,
-                                        longitude = ponto.longitude,
-                                        raioMetros = raioMetros.roundToInt(),
-                                        apenasVibrar = apenasVibrar
-                                    )
-                                } else {
-                                    Alarme(
-                                        nome = nomeFinal,
-                                        latitude = ponto.latitude,
-                                        longitude = ponto.longitude,
-                                        raioMetros = raioMetros.roundToInt(),
-                                        apenasVibrar = apenasVibrar
-                                    )
-                                }
+                        try {
+                            System.err.println("DEBUG_SAVE: Entrou no onClick")
+                            val ponto = pontoSelecionado
+                            System.err.println("DEBUG_SAVE: ponto=$ponto")
+                            when {
+                                ponto == null ->
+                                    Toast.makeText(contexto, "Toque no mapa para escolher a localização", Toast.LENGTH_SHORT).show()
+                                else -> {
+                                    val nomeFinal = if (nomeAlarme.isBlank()) "Alarme" else nomeAlarme.trim()
+                                    val alarme = if (alarmeParaEditar != null) {
+                                        alarmeParaEditar.copy(
+                                            nome = nomeFinal,
+                                            latitude = ponto.latitude,
+                                            longitude = ponto.longitude,
+                                            raioMetros = raioMetros.roundToInt(),
+                                            apenasVibrar = apenasVibrar
+                                        )
+                                    } else {
+                                        Alarme(
+                                            nome = nomeFinal,
+                                            latitude = ponto.latitude,
+                                            longitude = ponto.longitude,
+                                            raioMetros = raioMetros.roundToInt(),
+                                            apenasVibrar = apenasVibrar
+                                        )
+                                    }
 
-                                if (alarmeParaEditar != null) {
-                                    repositorio.atualizar(alarme)
-                                    Toast.makeText(contexto, "Alarme atualizado!", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    repositorio.inserir(alarme)
-                                    Toast.makeText(contexto, "Alarme salvo!", Toast.LENGTH_SHORT).show()
+                                    if (alarmeParaEditar != null) {
+                                        repositorio.atualizar(alarme)
+                                        Toast.makeText(contexto, "Alarme atualizado!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        repositorio.inserir(alarme)
+                                        Toast.makeText(contexto, "Alarme salvo!", Toast.LENGTH_SHORT).show()
+                                    }
+                                    aoVoltar()
                                 }
-                                aoVoltar()
                             }
+                        } catch (e: Throwable) {
+                            System.err.println("DEBUG_SAVE_EXCEPTION: ${e.message}")
+                            e.printStackTrace()
+                            throw e
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -366,87 +397,267 @@ fun TelaMapa(
                 }
             }
         }
-    ) { paddingInterno ->
-        // Box permite que a barra de busca flutue SOBRE o mapa, sem sobreposição indesejada
-        Box(
+
+        // FloatingActionButton para "Minha localização" em ambiente de teste
+        FloatingActionButton(
+            onClick = { irParaMinhaLocalizacao() },
             modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingInterno)
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 16.dp),
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
-            // Mapa OSMDroid — fundo da Box
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    Configuration.getInstance().userAgentValue = "AlarmMapApp/1.0"
-                    MapView(ctx).apply {
-                        setTileSource(TileSourceFactory.MAPNIK)
-                        setMultiTouchControls(true)
-                        controller.setZoom(14.0)
-                        // Posição inicial: Brasília (fallback caso GPS não esteja disponível)
-                        controller.setCenter(GeoPoint(-15.7801, -47.9292))
-
-                        // Overlay para capturar toques no mapa
-                        val receptor = object : MapEventsReceiver {
-                            override fun singleTapConfirmedHelper(ponto: GeoPoint): Boolean {
-                                colocarMarcador(ponto)
-                                return true
-                            }
-                            override fun longPressHelper(ponto: GeoPoint): Boolean = false
-                        }
-                        overlays.add(MapEventsOverlay(receptor))
-                        mapaView = this
-                    }
-                },
-                update = { mapa -> mapaView = mapa }
+            Icon(
+                imageVector = Icons.Default.MyLocation,
+                contentDescription = "Minha localização",
+                tint = MaterialTheme.colorScheme.primary
             )
-
-            // Barra de busca com autocomplete Photon flutuando sobre o mapa
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .align(Alignment.TopCenter),
-                shape = MaterialTheme.shapes.medium,
-                shadowElevation = 6.dp,
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                if (funcaoBusca != null) {
-                    BuscaEndereco(
-                        centroMapa = mapaView?.mapCenter?.let {
-                            GeoPoint(it.latitude, it.longitude)
-                        },
-                        aoSelecionarEndereco = { ponto, _ ->
-                            colocarMarcador(ponto)
-                            mapaView?.controller?.setZoom(16.0)
-                        },
-                        funcaoBusca = funcaoBusca
-                    )
-                } else {
-                    BuscaEndereco(
-                        centroMapa = mapaView?.mapCenter?.let {
-                            GeoPoint(it.latitude, it.longitude)
-                        },
-                        aoSelecionarEndereco = { ponto, _ ->
-                            colocarMarcador(ponto)
-                            mapaView?.controller?.setZoom(16.0)
+        }
+    }
+} else {
+        BottomSheetScaffold(
+            scaffoldState = estadoBottomSheet,
+            sheetPeekHeight = 220.dp,
+            topBar = {
+                TopAppBar(
+                    title = { Text(if (alarmeParaEditar != null) "Editar Alarme" else "Novo Alarme") },
+                    navigationIcon = {
+                        IconButton(onClick = aoVoltar) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Voltar",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
                         }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimary
                     )
+                )
+            },
+            sheetContent = {
+                // --- Painel inferior de configuração ---
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "Configurar alarme",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+
+                    // Campo: nome do alarme
+                    OutlinedTextField(
+                        value = nomeAlarme,
+                        onValueChange = { nomeAlarme = it },
+                        label = { Text("Nome do alarme") },
+                        placeholder = { Text("Ex: Casa, Trabalho…") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+
+                    // Slider de raio
+                    Text(
+                        text = "Raio: ${raioMetros.roundToInt()} metros",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Slider(
+                        value = raioMetros,
+                        onValueChange = { novoRaio ->
+                            raioMetros = novoRaio
+                            pontoSelecionado?.let { atualizarCirculo(it, novoRaio) }
+                        },
+                        valueRange = 50f..2000f,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "50 m",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                        Text(
+                            text = "2000 m",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.End
+                        )
+                    }
+
+                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+
+                    // Opção: Apenas vibrar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Apenas vibrar",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Desativa o som e apenas vibra o celular",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                        Switch(
+                            checked = apenasVibrar,
+                            onCheckedChange = { apenasVibrar = it }
+                        )
+                    }
+
+                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+
+                    // Botão salvar
+                    Button(
+                        onClick = {
+                            try {
+                                System.err.println("DEBUG_SAVE: Entrou no onClick")
+                                val ponto = pontoSelecionado
+                                System.err.println("DEBUG_SAVE: ponto=$ponto")
+                                when {
+                                    ponto == null ->
+                                        Toast.makeText(contexto, "Toque no mapa para escolher a localização", Toast.LENGTH_SHORT).show()
+                                    else -> {
+                                        val nomeFinal = if (nomeAlarme.isBlank()) "Alarme" else nomeAlarme.trim()
+                                        val alarme = if (alarmeParaEditar != null) {
+                                            alarmeParaEditar.copy(
+                                                nome = nomeFinal,
+                                                latitude = ponto.latitude,
+                                                longitude = ponto.longitude,
+                                                raioMetros = raioMetros.roundToInt(),
+                                                apenasVibrar = apenasVibrar
+                                            )
+                                        } else {
+                                            Alarme(
+                                                nome = nomeFinal,
+                                                latitude = ponto.latitude,
+                                                longitude = ponto.longitude,
+                                                raioMetros = raioMetros.roundToInt(),
+                                                apenasVibrar = apenasVibrar
+                                            )
+                                        }
+
+                                        if (alarmeParaEditar != null) {
+                                            repositorio.atualizar(alarme)
+                                            Toast.makeText(contexto, "Alarme atualizado!", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            repositorio.inserir(alarme)
+                                            Toast.makeText(contexto, "Alarme salvo!", Toast.LENGTH_SHORT).show()
+                                        }
+                                        aoVoltar()
+                                    }
+                                }
+                            } catch (e: Throwable) {
+                                System.err.println("DEBUG_SAVE_EXCEPTION: ${e.message}")
+                                e.printStackTrace()
+                                throw e
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (alarmeParaEditar != null) "Salvar alterações" else "Salvar alarme")
+                    }
                 }
             }
-
-            // Botão "Minha localização" no canto inferior direito
-            FloatingActionButton(
-                onClick = { irParaMinhaLocalizacao() },
+        ) { paddingInterno ->
+            // Box permite que a barra de busca flutue SOBRE o mapa, sem sobreposição indesejada
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 16.dp),
-                containerColor = MaterialTheme.colorScheme.surface
+                    .fillMaxSize()
+                    .padding(paddingInterno)
             ) {
-                Icon(
-                    imageVector = Icons.Default.MyLocation,
-                    contentDescription = "Minha localização",
-                    tint = MaterialTheme.colorScheme.primary
+                // Mapa OSMDroid — fundo da Box
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        Configuration.getInstance().userAgentValue = "AlarmMapApp/1.0"
+                        MapView(ctx).apply {
+                            setTileSource(TileSourceFactory.MAPNIK)
+                            setMultiTouchControls(true)
+                            controller.setZoom(14.0)
+                            // Posição inicial: Brasília (fallback caso GPS não esteja disponível)
+                            controller.setCenter(GeoPoint(-15.7801, -47.9292))
+
+                            // Overlay para capturar toques no mapa
+                            val receptor = object : MapEventsReceiver {
+                                override fun singleTapConfirmedHelper(ponto: GeoPoint): Boolean {
+                                    colocarMarcador(ponto)
+                                    return true
+                                }
+                                override fun longPressHelper(ponto: GeoPoint): Boolean = false
+                            }
+                            overlays.add(MapEventsOverlay(receptor))
+                            mapaView = this
+                        }
+                    },
+                    update = { mapa -> mapaView = mapa }
                 )
+
+                // Barra de busca com autocomplete Photon flutuando sobre o mapa
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .align(Alignment.TopCenter),
+                    shape = MaterialTheme.shapes.medium,
+                    shadowElevation = 6.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    if (funcaoBusca != null) {
+                        BuscaEndereco(
+                            centroMapa = mapaView?.mapCenter?.let {
+                                GeoPoint(it.latitude, it.longitude)
+                            },
+                            aoSelecionarEndereco = { ponto, _ ->
+                                colocarMarcador(ponto)
+                                mapaView?.controller?.setZoom(16.0)
+                            },
+                            funcaoBusca = funcaoBusca
+                        )
+                    } else {
+                        BuscaEndereco(
+                            centroMapa = mapaView?.mapCenter?.let {
+                                GeoPoint(it.latitude, it.longitude)
+                            },
+                            aoSelecionarEndereco = { ponto, _ ->
+                                colocarMarcador(ponto)
+                                mapaView?.controller?.setZoom(16.0)
+                            }
+                        )
+                    }
+                }
+
+                // Botão "Minha localização" no canto inferior direito
+                FloatingActionButton(
+                    onClick = { irParaMinhaLocalizacao() },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 16.dp),
+                    containerColor = MaterialTheme.colorScheme.surface
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MyLocation,
+                        contentDescription = "Minha localização",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
