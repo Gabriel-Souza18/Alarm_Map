@@ -177,6 +177,52 @@ fun TelaMapa(
         }
     }
 
+    // Salva ou atualiza o alarme no banco de dados e volta para a tela anterior
+    fun salvarAlarme() {
+        try {
+            System.err.println("DEBUG_SAVE: Entrou no salvarAlarme")
+            val ponto = pontoSelecionado
+            System.err.println("DEBUG_SAVE: ponto=$ponto")
+            when {
+                ponto == null ->
+                    Toast.makeText(contexto, "Toque no mapa para escolher a localização", Toast.LENGTH_SHORT).show()
+                else -> {
+                    val nomeFinal = if (nomeAlarme.isBlank()) "Alarme" else nomeAlarme.trim()
+                    val alarme = if (alarmeParaEditar != null) {
+                        alarmeParaEditar.copy(
+                            nome = nomeFinal,
+                            latitude = ponto.latitude,
+                            longitude = ponto.longitude,
+                            raioMetros = raioMetros.roundToInt(),
+                            apenasVibrar = apenasVibrar
+                        )
+                    } else {
+                        Alarme(
+                            nome = nomeFinal,
+                            latitude = ponto.latitude,
+                            longitude = ponto.longitude,
+                            raioMetros = raioMetros.roundToInt(),
+                            apenasVibrar = apenasVibrar
+                        )
+                    }
+
+                    if (alarmeParaEditar != null) {
+                        repositorio.atualizar(alarme)
+                        Toast.makeText(contexto, "Alarme atualizado!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        repositorio.inserir(alarme)
+                        Toast.makeText(contexto, "Alarme salvo!", Toast.LENGTH_SHORT).show()
+                    }
+                    aoVoltar()
+                }
+            }
+        } catch (e: Throwable) {
+            System.err.println("DEBUG_SAVE_EXCEPTION: ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
+    }
+
 
 
     // Ao abrir a tela, centraliza o mapa e cria o marcador inicial se for edição,
@@ -262,140 +308,18 @@ fun TelaMapa(
                 }
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = "Configurar alarme",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
-
-                OutlinedTextField(
-                    value = nomeAlarme,
-                    onValueChange = { nomeAlarme = it },
-                    label = { Text("Nome do alarme") },
-                    placeholder = { Text("Ex: Casa, Trabalho…") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
-
-                Text(
-                    text = "Raio: ${raioMetros.roundToInt()} metros",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Slider(
-                    value = raioMetros,
-                    onValueChange = { novoRaio ->
-                        raioMetros = novoRaio
-                        pontoSelecionado?.let { atualizarCirculo(it, novoRaio) }
-                    },
-                    valueRange = 50f..2000f,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "50 m",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                    Text(
-                        text = "2000 m",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.End
-                    )
-                }
-
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Apenas vibrar",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Desativa o som e apenas vibra o celular",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                    Switch(
-                        checked = apenasVibrar,
-                        onCheckedChange = { apenasVibrar = it }
-                    )
-                }
-
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
-
-                Button(
-                    onClick = {
-                        try {
-                            System.err.println("DEBUG_SAVE: Entrou no onClick")
-                            val ponto = pontoSelecionado
-                            System.err.println("DEBUG_SAVE: ponto=$ponto")
-                            when {
-                                ponto == null ->
-                                    Toast.makeText(contexto, "Toque no mapa para escolher a localização", Toast.LENGTH_SHORT).show()
-                                else -> {
-                                    val nomeFinal = if (nomeAlarme.isBlank()) "Alarme" else nomeAlarme.trim()
-                                    val alarme = if (alarmeParaEditar != null) {
-                                        alarmeParaEditar.copy(
-                                            nome = nomeFinal,
-                                            latitude = ponto.latitude,
-                                            longitude = ponto.longitude,
-                                            raioMetros = raioMetros.roundToInt(),
-                                            apenasVibrar = apenasVibrar
-                                        )
-                                    } else {
-                                        Alarme(
-                                            nome = nomeFinal,
-                                            latitude = ponto.latitude,
-                                            longitude = ponto.longitude,
-                                            raioMetros = raioMetros.roundToInt(),
-                                            apenasVibrar = apenasVibrar
-                                        )
-                                    }
-
-                                    if (alarmeParaEditar != null) {
-                                        repositorio.atualizar(alarme)
-                                        Toast.makeText(contexto, "Alarme atualizado!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        repositorio.inserir(alarme)
-                                        Toast.makeText(contexto, "Alarme salvo!", Toast.LENGTH_SHORT).show()
-                                    }
-                                    aoVoltar()
-                                }
-                            }
-                        } catch (e: Throwable) {
-                            System.err.println("DEBUG_SAVE_EXCEPTION: ${e.message}")
-                            e.printStackTrace()
-                            throw e
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(if (alarmeParaEditar != null) "Salvar alterações" else "Salvar alarme")
-                }
-            }
+            PainelConfiguracaoAlarme(
+                nomeAlarme = nomeAlarme,
+                aoNomeAlarmeAlterado = { nomeAlarme = it },
+                raioMetros = raioMetros,
+                aoRaioMetrosAlterado = { raioMetros = it },
+                pontoSelecionado = pontoSelecionado,
+                aoAtualizarCirculo = { ponto, raio -> atualizarCirculo(ponto, raio) },
+                apenasVibrar = apenasVibrar,
+                aoApenasVibrarAlterado = { apenasVibrar = it },
+                aoSalvar = ::salvarAlarme,
+                textoBotaoSalvar = if (alarmeParaEditar != null) "Salvar alterações" else "Salvar alarme"
+            )
         }
 
         // FloatingActionButton para "Minha localização" em ambiente de teste
@@ -437,144 +361,18 @@ fun TelaMapa(
             },
             sheetContent = {
                 // --- Painel inferior de configuração ---
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = "Configurar alarme",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
-
-                    // Campo: nome do alarme
-                    OutlinedTextField(
-                        value = nomeAlarme,
-                        onValueChange = { nomeAlarme = it },
-                        label = { Text("Nome do alarme") },
-                        placeholder = { Text("Ex: Casa, Trabalho…") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
-
-                    // Slider de raio
-                    Text(
-                        text = "Raio: ${raioMetros.roundToInt()} metros",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Slider(
-                        value = raioMetros,
-                        onValueChange = { novoRaio ->
-                            raioMetros = novoRaio
-                            pontoSelecionado?.let { atualizarCirculo(it, novoRaio) }
-                        },
-                        valueRange = 50f..2000f,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "50 m",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                        Text(
-                            text = "2000 m",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.End
-                        )
-                    }
-
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
-
-                    // Opção: Apenas vibrar
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Apenas vibrar",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Desativa o som e apenas vibra o celular",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.outline
-                            )
-                        }
-                        Switch(
-                            checked = apenasVibrar,
-                            onCheckedChange = { apenasVibrar = it }
-                        )
-                    }
-
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
-
-                    // Botão salvar
-                    Button(
-                        onClick = {
-                            try {
-                                System.err.println("DEBUG_SAVE: Entrou no onClick")
-                                val ponto = pontoSelecionado
-                                System.err.println("DEBUG_SAVE: ponto=$ponto")
-                                when {
-                                    ponto == null ->
-                                        Toast.makeText(contexto, "Toque no mapa para escolher a localização", Toast.LENGTH_SHORT).show()
-                                    else -> {
-                                        val nomeFinal = if (nomeAlarme.isBlank()) "Alarme" else nomeAlarme.trim()
-                                        val alarme = if (alarmeParaEditar != null) {
-                                            alarmeParaEditar.copy(
-                                                nome = nomeFinal,
-                                                latitude = ponto.latitude,
-                                                longitude = ponto.longitude,
-                                                raioMetros = raioMetros.roundToInt(),
-                                                apenasVibrar = apenasVibrar
-                                            )
-                                        } else {
-                                            Alarme(
-                                                nome = nomeFinal,
-                                                latitude = ponto.latitude,
-                                                longitude = ponto.longitude,
-                                                raioMetros = raioMetros.roundToInt(),
-                                                apenasVibrar = apenasVibrar
-                                            )
-                                        }
-
-                                        if (alarmeParaEditar != null) {
-                                            repositorio.atualizar(alarme)
-                                            Toast.makeText(contexto, "Alarme atualizado!", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            repositorio.inserir(alarme)
-                                            Toast.makeText(contexto, "Alarme salvo!", Toast.LENGTH_SHORT).show()
-                                        }
-                                        aoVoltar()
-                                    }
-                                }
-                            } catch (e: Throwable) {
-                                System.err.println("DEBUG_SAVE_EXCEPTION: ${e.message}")
-                                e.printStackTrace()
-                                throw e
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (alarmeParaEditar != null) "Salvar alterações" else "Salvar alarme")
-                    }
-                }
+                PainelConfiguracaoAlarme(
+                    nomeAlarme = nomeAlarme,
+                    aoNomeAlarmeAlterado = { nomeAlarme = it },
+                    raioMetros = raioMetros,
+                    aoRaioMetrosAlterado = { raioMetros = it },
+                    pontoSelecionado = pontoSelecionado,
+                    aoAtualizarCirculo = { ponto, raio -> atualizarCirculo(ponto, raio) },
+                    apenasVibrar = apenasVibrar,
+                    aoApenasVibrarAlterado = { apenasVibrar = it },
+                    aoSalvar = ::salvarAlarme,
+                    textoBotaoSalvar = if (alarmeParaEditar != null) "Salvar alterações" else "Salvar alarme"
+                )
             }
         ) { paddingInterno ->
             // Box permite que a barra de busca flutue SOBRE o mapa, sem sobreposição indesejada
@@ -659,6 +457,117 @@ fun TelaMapa(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Painel de configuração do alarme, contendo o nome, raio (slider), opção de apenas vibrar e o botão de salvar.
+ * Extraído para evitar duplicação de código detectada pelo SonarQube entre o layout de produção e o layout de testes.
+ */
+@Composable
+private fun PainelConfiguracaoAlarme(
+    nomeAlarme: String,
+    aoNomeAlarmeAlterado: (String) -> Unit,
+    raioMetros: Float,
+    aoRaioMetrosAlterado: (Float) -> Unit,
+    pontoSelecionado: GeoPoint?,
+    aoAtualizarCirculo: (GeoPoint, Float) -> Unit,
+    apenasVibrar: Boolean,
+    aoApenasVibrarAlterado: (Boolean) -> Unit,
+    aoSalvar: () -> Unit,
+    textoBotaoSalvar: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "Configurar alarme",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+
+        OutlinedTextField(
+            value = nomeAlarme,
+            onValueChange = aoNomeAlarmeAlterado,
+            label = { Text("Nome do alarme") },
+            placeholder = { Text("Ex: Casa, Trabalho…") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+
+        Text(
+            text = "Raio: ${raioMetros.roundToInt()} metros",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Slider(
+            value = raioMetros,
+            onValueChange = { novoRaio ->
+                aoRaioMetrosAlterado(novoRaio)
+                pontoSelecionado?.let { aoAtualizarCirculo(it, novoRaio) }
+            },
+            valueRange = 50f..2000f,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "50 m",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline
+            )
+            Text(
+                text = "2000 m",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.End
+            )
+        }
+
+        androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Apenas vibrar",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Desativa o som e apenas vibra o celular",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+            Switch(
+                checked = apenasVibrar,
+                onCheckedChange = aoApenasVibrarAlterado
+            )
+        }
+
+        androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+
+        Button(
+            onClick = aoSalvar,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(textoBotaoSalvar)
         }
     }
 }
