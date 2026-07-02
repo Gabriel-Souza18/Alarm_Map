@@ -296,4 +296,77 @@ class TelaListaAlarmesStateTest {
         assertEquals(lista1, lista2)
         assertEquals(1, lista1.size)
     }
+
+    // --- Testes adicionais de casos extremos ---
+
+    @Test
+    fun testAlternarAtivoIdInexistente() {
+        // Verifica que alternar com ID inexistente não afeta alarmes existentes
+        val alarme = Alarme(id = 1L, nome = "Existente", latitude = 0.0, longitude = 0.0, ativo = true)
+        whenever(repositorio.listarTodos()).thenReturn(listOf(alarme))
+        state.carregarAlarmes()
+
+        state.alternarAtivo(999L, false)
+
+        // O alarme existente deve continuar inalterado
+        assertEquals(1, state.alarmes.size)
+        assertTrue(state.alarmes.first().ativo)
+        assertEquals("Existente", state.alarmes.first().nome)
+        // O repositório ainda recebe a chamada mesmo com ID inexistente
+        verify(repositorio).alternarAtivo(999L, false)
+    }
+
+    @Test
+    fun testDeletarAlarmeIdInexistente() {
+        // Verifica que deletar com ID inexistente não altera a lista
+        val alarme = Alarme(id = 1L, nome = "Presente", latitude = -10.0, longitude = -20.0)
+        whenever(repositorio.listarTodos()).thenReturn(listOf(alarme))
+        state.carregarAlarmes()
+
+        state.deletarAlarme(888L)
+
+        // A lista permanece inalterada
+        assertEquals(1, state.alarmes.size)
+        assertEquals("Presente", state.alarmes.first().nome)
+        // O repositório recebe a chamada de deletar
+        verify(repositorio).deletar(888L)
+    }
+
+    @Test
+    fun testCarregarAlarmesMultiplasVezes() {
+        // Verifica que carregar várias vezes com os mesmos dados não duplica
+        val alarme = Alarme(id = 1L, nome = "Único", latitude = 0.0, longitude = 0.0)
+        whenever(repositorio.listarTodos()).thenReturn(listOf(alarme))
+
+        state.carregarAlarmes()
+        assertEquals(1, state.alarmes.size)
+
+        state.carregarAlarmes()
+        assertEquals(1, state.alarmes.size)
+
+        state.carregarAlarmes()
+        assertEquals(1, state.alarmes.size)
+
+        // Verifica que o repositório foi chamado 3 vezes
+        verify(repositorio, times(3)).listarTodos()
+    }
+
+    @Test
+    fun testDialogoTemaEstadoInicial() {
+        // Verifica que o diálogo de tema começa como não exibido
+        val novoState = TelaListaAlarmesState(repositorio)
+        assertFalse(novoState.exibirDialogoTema)
+    }
+
+    @Test
+    fun testDialogoTemaAbrirFechar() {
+        // Verifica o ciclo completo de abrir e fechar o diálogo
+        assertFalse(state.exibirDialogoTema)
+
+        state.abrirDialogoTema()
+        assertTrue(state.exibirDialogoTema)
+
+        state.fecharDialogoTema()
+        assertFalse(state.exibirDialogoTema)
+    }
 }

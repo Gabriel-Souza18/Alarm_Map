@@ -22,4 +22,24 @@ class MainActivityTest {
         composeTestRule.onNodeWithContentDescription("Configurações de Tema").assertExists()
         composeTestRule.onNodeWithContentDescription("Novo alarme").assertExists()
     }
+
+    @Test
+    fun testMainActivityNavegacao() {
+        // Verifica que começa na lista de alarmes
+        composeTestRule.onNodeWithText("Meus Alarmes").assertExists()
+
+        // Clica no botão "+" para ir para o mapa
+        composeTestRule.onNodeWithContentDescription("Novo alarme").performClick()
+        composeTestRule.waitForIdle()
+
+        // Agora deve estar na tela do mapa (titulo "Novo Alarme")
+        composeTestRule.onNodeWithText("Novo Alarme").assertExists()
+
+        // Clica no botão voltar na tela do mapa
+        composeTestRule.onNodeWithContentDescription("Voltar").performClick()
+        composeTestRule.waitForIdle()
+
+        // Deve voltar para a lista de alarmes
+        composeTestRule.onNodeWithText("Meus Alarmes").assertExists()
+    }
 }
