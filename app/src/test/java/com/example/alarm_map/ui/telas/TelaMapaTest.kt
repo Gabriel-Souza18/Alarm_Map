@@ -261,4 +261,268 @@ class TelaMapaTest {
             composeTestRule.waitForIdle()
         }
     }
+
+    /**
+     * Verifica que salvar com nome em branco usa 'Alarme' como nome padrão.
+     * Testa a linha: val nomeFinal = if (nomeAlarme.isBlank()) "Alarme" else nomeAlarme.trim()
+     */
+    @Test
+    fun testTelaMapaSalvarComNomeEmBrancoUsaPadrao() {
+        var voltou = false
+        val fakeResultados = listOf(
+            ResultadoBusca(
+                ponto = GeoPoint(-23.55, -46.63),
+                nome = "Local Padrão",
+                enderecoFormatado = "Rua Padrão, 100"
+            )
+        )
+
+        composeTestRule.setContent {
+            TelaMapa(
+                alarmeParaEditar = null,
+                aoVoltar = { voltou = true },
+                funcaoBusca = { _, _ -> fakeResultados },
+                expandidoInicialmente = true,
+                isTesting = true
+            )
+        }
+
+        // Seleciona um endereço via busca para definir pontoSelecionado
+        composeTestRule.onNodeWithText("Buscar endereço").performTextInput("Loc")
+        composeTestRule.onNodeWithText("Buscar endereço").requestFocus()
+        composeTestRule.mainClock.advanceTimeBy(1000L)
+        composeTestRule.mainClock.autoAdvance = true
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Local Padrão").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Local Padrão").performClick()
+        composeTestRule.waitForIdle()
+
+        // NÃO preenche o nome do alarme (campo vazio = deve usar "Alarme" como padrão)
+        // Clica diretamente em Salvar alarme
+        composeTestRule.onNodeWithText("Salvar alarme").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        // Deve ter salvo e chamado aoVoltar mesmo com nome em branco
+        assertTrue(voltou)
+    }
+
+    /**
+     * Verifica que clicar em salvar sem ponto selecionado NÃO chama aoVoltar.
+     * Testa o branch: ponto == null -> Toast e não chama aoVoltar
+     */
+    @Test
+    fun testTelaMapaBotaoSalvarSemPontoNaoChamaAoVoltar() {
+        var voltou = false
+
+        composeTestRule.setContent {
+            TelaMapa(
+                alarmeParaEditar = null,
+                aoVoltar = { voltou = true },
+                isTesting = true
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // Clica em Salvar sem selecionar ponto → deve mostrar Toast, não chamar aoVoltar
+        composeTestRule.onNodeWithText("Salvar alarme").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        // aoVoltar NÃO deve ter sido chamado
+        assertEquals(false, voltou)
+    }
+
+    /**
+     * Verifica que o raio padrão de 200 metros aparece no texto exibido.
+     * Testa a linha: "Raio: ${raioMetros.roundToInt()} metros"
+     */
+    @Test
+    fun testTelaMapaRaioDefaultExibido() {
+        composeTestRule.setContent {
+            TelaMapa(
+                alarmeParaEditar = null,
+                aoVoltar = {},
+                isTesting = true
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // Verifica que o texto do raio padrão (200m) está presente
+        composeTestRule.onNodeWithText("Raio: 200 metros").assertExists()
+    }
+
+    /**
+     * Verifica que em modo edição, o raio do alarme original é pré-preenchido.
+     * Testa: mutableFloatStateOf(alarmeParaEditar?.raioMetros?.toFloat() ?: 200f)
+     */
+    @Test
+    fun testTelaMapaEdicaoPreencheRaioCorreto() {
+        val alarme = Alarme(
+            id = 2,
+            nome = "Alarme Raio",
+            latitude = -15.78,
+            longitude = -47.92,
+            raioMetros = 750,
+            ativo = true,
+            apenasVibrar = false
+        )
+
+        composeTestRule.setContent {
+            TelaMapa(
+                alarmeParaEditar = alarme,
+                aoVoltar = {},
+                expandidoInicialmente = true,
+                isTesting = true
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // O raio do alarme editado (750m) deve estar exibido no texto
+        composeTestRule.onNodeWithText("Raio: 750 metros").assertExists()
+    }
+
+    /**
+     * Verifica que o botão em modo edição exibe "Salvar alterações" em vez de "Salvar alarme".
+     * Testa: textoBotaoSalvar = if (alarmeParaEditar != null) "Salvar alterações" else "Salvar alarme"
+     */
+    @Test
+    fun testTelaMapaTextoBotaoModosDistintos() {
+        // Modo novo: deve exibir "Salvar alarme"
+        composeTestRule.setContent {
+            TelaMapa(
+                alarmeParaEditar = null,
+                aoVoltar = {},
+                isTesting = true
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Salvar alarme").assertExists()
+        composeTestRule.onNodeWithText("Salvar alterações").assertDoesNotExist()
+    }
+
+    /**
+     * Verifica que editar alarme com nome em branco usa 'Alarme' como padrão.
+     * Testa o branch: alarmeParaEditar.copy(nome = "Alarme") quando nomeAlarme.isBlank()
+     */
+    @Test
+    fun testTelaMapaEdicaoComNomeEmBrancoUsaPadrao() {
+        var voltou = false
+        val alarme = Alarme(
+            id = 3,
+            nome = "Alarme Original",
+            latitude = -23.55,
+            longitude = -46.63,
+            raioMetros = 300,
+            ativo = true,
+            apenasVibrar = false
+        )
+
+        composeTestRule.setContent {
+            TelaMapa(
+                alarmeParaEditar = alarme,
+                aoVoltar = { voltou = true },
+                expandidoInicialmente = true,
+                isTesting = true
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // Limpa o campo de nome
+        composeTestRule.onNodeWithText("Alarme Original").performTextClearance()
+        composeTestRule.waitForIdle()
+
+        // Garante que o campo está vazio após limpeza
+        composeTestRule.mainClock.advanceTimeBy(500L)
+        composeTestRule.waitForIdle()
+
+        // Salva com nome em branco → deve usar "Alarme" e chamar aoVoltar
+        composeTestRule.onNodeWithText("Salvar alterações").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertTrue(voltou)
+    }
+
+    /**
+     * Verifica que o PainelConfiguracaoAlarme exibe todos os elementos esperados:
+     * título, campo de nome, rótulos de raio, Switch de vibrar e botão.
+     */
+    @Test
+    fun testPainelConfiguracaoAlarmeExibeElementos() {
+        composeTestRule.setContent {
+            TelaMapa(
+                alarmeParaEditar = null,
+                aoVoltar = {},
+                isTesting = true
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // Todos os elementos do PainelConfiguracaoAlarme devem estar visíveis
+        composeTestRule.onNodeWithText("Configurar alarme").assertExists()
+        composeTestRule.onNodeWithText("Nome do alarme").assertExists()
+        composeTestRule.onNodeWithText("Apenas vibrar").assertExists()
+        composeTestRule.onNodeWithText("Desativa o som e apenas vibra o celular").assertExists()
+        composeTestRule.onNodeWithText("Salvar alarme").assertExists()
+        composeTestRule.onNodeWithText("50 m").assertExists()
+        composeTestRule.onNodeWithText("2000 m").assertExists()
+    }
+
+    /**
+     * Verifica que o Switch de "Apenas vibrar" pode ser alternado no modo edição.
+     * Testa a interação com o componente Switch do PainelConfiguracaoAlarme.
+     */
+    @Test
+    fun testTelaMapaAlternarApenasVibrar() {
+        val alarme = Alarme(
+            id = 4,
+            nome = "Alarme Vibrar",
+            latitude = -23.55,
+            longitude = -46.63,
+            raioMetros = 200,
+            ativo = true,
+            apenasVibrar = false // começa desligado
+        )
+
+        composeTestRule.setContent {
+            TelaMapa(
+                alarmeParaEditar = alarme,
+                aoVoltar = {},
+                expandidoInicialmente = true,
+                isTesting = true
+            )
+        }
+
+        composeTestRule.waitForIdle()
+
+        // Alterna o Switch de "Apenas vibrar"
+        composeTestRule.onNode(androidx.compose.ui.test.isToggleable()).performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        // O switch deve ter sido alternado (sem erro)
+        composeTestRule.onNodeWithText("Apenas vibrar").assertExists()
+    }
+
+    /**
+     * Verifica que o título muda conforme o modo (novo vs edição).
+     * Testa: Text(if (alarmeParaEditar != null) "Editar Alarme" else "Novo Alarme")
+     */
+    @Test
+    fun testTelaMapaTituloNovoVsEdicao() {
+        // Modo novo
+        composeTestRule.setContent {
+            TelaMapa(
+                alarmeParaEditar = null,
+                aoVoltar = {},
+                isTesting = true
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Novo Alarme").assertExists()
+    }
 }

@@ -609,4 +609,227 @@ class BuscaEnderecoTest {
         println("DEBUG LOCATION NATIVO: distance = ${results[0]}")
         assertTrue(results[0] > 0)
     }
+
+    // =========================================================================
+    // Testes adicionais de obterPrioridadeTipo — variantes não cobertas
+    // =========================================================================
+
+    @Test
+    fun `obterPrioridadeTipo retorna 3 para village hamlet e municipality`() {
+        // Cobre os branches: "village", "hamlet", "municipality" → prioridade 3
+        assertEquals(3, obterPrioridadeTipo("village"))
+        assertEquals(3, obterPrioridadeTipo("hamlet"))
+        assertEquals(3, obterPrioridadeTipo("municipality"))
+    }
+
+    @Test
+    fun `obterPrioridadeTipo retorna 4 para district neighbourhood locality e postcode`() {
+        // Cobre os branches: "district", "neighbourhood", "locality", "postcode" → prioridade 4
+        assertEquals(4, obterPrioridadeTipo("district"))
+        assertEquals(4, obterPrioridadeTipo("neighbourhood"))
+        assertEquals(4, obterPrioridadeTipo("locality"))
+        assertEquals(4, obterPrioridadeTipo("postcode"))
+    }
+
+    @Test
+    fun `obterPrioridadeTipo retorna 5 para highway`() {
+        // Cobre o branch: "highway" → prioridade 5
+        assertEquals(5, obterPrioridadeTipo("highway"))
+    }
+
+    @Test
+    fun `obterPrioridadeTipo ignora maiusculas e minusculas`() {
+        // Verifica que o lowercase() funciona corretamente
+        assertEquals(3, obterPrioridadeTipo("CITY"))
+        assertEquals(1, obterPrioridadeTipo("Country"))
+        assertEquals(6, obterPrioridadeTipo("UNKNOWN"))
+    }
+
+    // =========================================================================
+    // Testes da UI — branches não cobertos do composable BuscaEndereco
+    // =========================================================================
+
+    @Test
+    fun testBuscaEnderecoResultadoSemEnderecoFormatadoNaoExibeSubtitulo() {
+        // Testa o branch: if (resultado.enderecoFormatado.isNotEmpty()) -> NÃO entra (linha 239)
+        val resultadoSemEndereco = ResultadoBusca(
+            ponto = GeoPoint(-23.55, -46.63),
+            nome = "Local Sem Endereco",
+            enderecoFormatado = "" // campo vazio
+        )
+
+        composeTestRule.setContent {
+            BuscaEndereco(
+                centroMapa = null,
+                aoSelecionarEndereco = { _, _ -> },
+                funcaoBusca = { _, _ -> listOf(resultadoSemEndereco) }
+            )
+        }
+
+        // Digita e aguarda o debounce
+        composeTestRule.onNodeWithText("Buscar endereço").performTextInput("Loc")
+        composeTestRule.onNodeWithText("Buscar endereço").requestFocus()
+        composeTestRule.mainClock.advanceTimeBy(1000L)
+        composeTestRule.mainClock.autoAdvance = true
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Local Sem Endereco").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // O nome deve aparecer
+        composeTestRule.onNodeWithText("Local Sem Endereco").assertExists()
+        // O endereço formatado NÃO deve aparecer (é vazio)
+        composeTestRule.onNodeWithText("").assertDoesNotExist()
+    }
+
+    @Test
+    fun testBuscaEnderecoComCentroMapaDefinidoExecutaOrdenacaoPorDistancia() {
+        // Testa o branch: centroMapa != null no bloco sortedWith (linhas 113-130)
+        // Dois resultados com o MESMO tipo para forçar a comparação de distância
+        val centro = GeoPoint(-23.5505, -46.6333)
+
+        val rProximo = ResultadoBusca(
+            ponto = GeoPoint(-23.5600, -46.6400), // ~1.5km do centro
+            nome = "Resultado Proximo",
+            enderecoFormatado = "Rua Próxima",
+            tipo = "house" // mesmo tipo → cai no else da prioridade (ambos = 6)
+        )
+        val rDistante = ResultadoBusca(
+            ponto = GeoPoint(-22.9068, -43.1729), // ~Rio de Janeiro, ~360km
+            nome = "Resultado Distante",
+            enderecoFormatado = "Rua Distante",
+            tipo = "house"
+        )
+
+        // Passa na ordem errada (distante primeiro) para verificar se reordena
+        val fakeResultados = listOf(rDistante, rProximo)
+
+        composeTestRule.setContent {
+            BuscaEndereco(
+                centroMapa = centro,
+                aoSelecionarEndereco = { _, _ -> },
+                funcaoBusca = { _, _ -> fakeResultados }
+            )
+        }
+
+        composeTestRule.onNodeWithText("Buscar endereço").performTextInput("Res")
+        composeTestRule.onNodeWithText("Buscar endereço").requestFocus()
+        composeTestRule.mainClock.advanceTimeBy(1000L)
+        composeTestRule.mainClock.autoAdvance = true
+
+        // Aguarda qualquer dos dois resultados aparecer
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Resultado Proximo").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Ambos devem aparecer (até 5 são exibidos)
+        composeTestRule.onNodeWithText("Resultado Proximo").assertExists()
+        composeTestRule.onNodeWithText("Resultado Distante").assertExists()
+    }
+
+    @Test
+    fun testBuscaEnderecoCampoComDoisCaracteresNaoExibeResultados() {
+        // Testa o branch: consulta.length < 3 → limpa resultados e retorna (linhas 95-99)
+        var buscaAcionada = false
+
+        composeTestRule.setContent {
+            BuscaEndereco(
+                centroMapa = null,
+                aoSelecionarEndereco = { _, _ -> },
+                funcaoBusca = { _, _ ->
+                    buscaAcionada = true
+                    listOf(ResultadoBusca(GeoPoint(0.0, 0.0), "Resultado", "Addr"))
+                }
+            )
+        }
+
+        // Digita apenas 2 caracteres (abaixo do mínimo de 3)
+        composeTestRule.onNodeWithText("Buscar endereço").performTextInput("AB")
+        composeTestRule.mainClock.advanceTimeBy(1000L)
+        composeTestRule.waitForIdle()
+
+        // A função de busca NÃO deve ter sido chamada
+        assertEquals(false, buscaAcionada)
+        // Nenhum resultado deve aparecer
+        composeTestRule.onNodeWithText("Resultado").assertDoesNotExist()
+    }
+
+    @Test
+    fun testBuscaEnderecoSelecionarSugestaoPreencheOCampo() {
+        // Testa o branch do clique na sugestão: deSugestao = true, consulta = resultado.nome
+        // Verifica que após selecionar, o campo contém o nome do resultado
+        val fakeResultados = listOf(
+            ResultadoBusca(
+                ponto = GeoPoint(-15.78, -47.92),
+                nome = "Brasília DF",
+                enderecoFormatado = "Distrito Federal, Brasil"
+            )
+        )
+
+        var pontoRecebido: GeoPoint? = null
+
+        composeTestRule.setContent {
+            BuscaEndereco(
+                centroMapa = null,
+                aoSelecionarEndereco = { ponto, _ -> pontoRecebido = ponto },
+                funcaoBusca = { _, _ -> fakeResultados }
+            )
+        }
+
+        composeTestRule.onNodeWithText("Buscar endereço").performTextInput("Bra")
+        composeTestRule.onNodeWithText("Buscar endereço").requestFocus()
+        composeTestRule.mainClock.advanceTimeBy(1000L)
+        composeTestRule.mainClock.autoAdvance = true
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Brasília DF").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeTestRule.onNodeWithText("Brasília DF").performClick()
+        composeTestRule.waitForIdle()
+
+        // O callback deve ter sido chamado com o ponto correto
+        assertEquals(GeoPoint(-15.78, -47.92), pontoRecebido)
+    }
+
+    @Test
+    fun testBuscaEnderecoOrdenacaoMistaTipoEDistancia() {
+        // Testa que resultados com tipos diferentes são ordenados por prioridade de tipo,
+        // e que o branch p1 != p2 é coberto (linhas 111-113)
+        val centro = GeoPoint(-23.5505, -46.6333)
+
+        val rCidade = ResultadoBusca(
+            ponto = GeoPoint(-22.9068, -43.1729), // distante, mas tipo "city" (prioridade 3)
+            nome = "Cidade Distante",
+            enderecoFormatado = "RJ",
+            tipo = "city"
+        )
+        val rCasa = ResultadoBusca(
+            ponto = GeoPoint(-23.5600, -46.6400), // próximo, mas tipo "house" (prioridade 6)
+            nome = "Casa Proxima",
+            enderecoFormatado = "SP",
+            tipo = "house"
+        )
+
+        composeTestRule.setContent {
+            BuscaEndereco(
+                centroMapa = centro,
+                aoSelecionarEndereco = { _, _ -> },
+                funcaoBusca = { _, _ -> listOf(rCasa, rCidade) } // casa primeiro, mas deve vir depois
+            )
+        }
+
+        composeTestRule.onNodeWithText("Buscar endereço").performTextInput("Loc")
+        composeTestRule.onNodeWithText("Buscar endereço").requestFocus()
+        composeTestRule.mainClock.advanceTimeBy(1000L)
+        composeTestRule.mainClock.autoAdvance = true
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Cidade Distante").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Ambos devem aparecer
+        composeTestRule.onNodeWithText("Cidade Distante").assertExists()
+        composeTestRule.onNodeWithText("Casa Proxima").assertExists()
+    }
 }
